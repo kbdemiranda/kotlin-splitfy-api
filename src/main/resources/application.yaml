@@ -1,3 +1,9 @@
 spring:
   application:
     name: kotlin-splitfy-api
+  profiles:
+    active: dev
+
+# Defaults (can be overridden per-profile)
+server:
+  port: 8080
