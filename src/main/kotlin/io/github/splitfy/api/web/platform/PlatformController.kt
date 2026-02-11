@@ -11,6 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.parameters.RequestBody as OpenApiRequestBody
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 
 @RestController
 @RequestMapping("/platforms")
@@ -32,7 +35,11 @@ class PlatformController(private val service: PlatformService) {
 
     @Operation(summary = "List platforms", description = "Returns all platforms")
     @GetMapping
-    fun list(): List<PlatformResponse> = service.findAll()
+    fun list(
+        @Parameter(description = "Filter by name (partial match, case-insensitive)")
+        @RequestParam(required = false) name: String?,
+        @PageableDefault(page = 0, size = 10, sort = ["name"]) pageable: Pageable
+    ): Page<PlatformResponse> = service.findAll(pageable, name)
 
     @Operation(summary = "Get platform", description = "Returns a platform by ID")
     @ApiResponses(

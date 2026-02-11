@@ -4,9 +4,13 @@ import io.github.splitfy.api.service.subscriber.SubscriberService
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -29,8 +34,12 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @GetMapping
-    fun list(): ResponseEntity<List<SubscriberResponse>> {
-        val subscribers = subscriberService.list()
+    fun list(
+        @Parameter(description = "Filter by name (partial match, case-insensitive)")
+        @RequestParam(required = false) name: String?,
+        @PageableDefault(page = 0, size = 10, sort = ["name"]) pageable: Pageable
+    ): ResponseEntity<Page<SubscriberResponse>> {
+        val subscribers = subscriberService.list(pageable, name)
         return ResponseEntity.ok(subscribers)
     }
 

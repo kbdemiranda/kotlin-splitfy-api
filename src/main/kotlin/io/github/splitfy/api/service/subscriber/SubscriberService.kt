@@ -5,6 +5,8 @@ import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import jakarta.persistence.EntityNotFoundException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -25,12 +27,17 @@ class SubscriberService(private val subscriberRepository: SubscriberRepository) 
         return toDto(saved)
     }
 
-    fun list(): List<SubscriberResponse> {
-        return subscriberRepository.findAll().map { toDto(it) }
+    fun list(pageable: Pageable, name: String?): Page<SubscriberResponse> {
+        val subscribers = if (name.isNullOrBlank()) {
+            subscriberRepository.findByDeletedAtIsNull(pageable)
+        } else {
+            subscriberRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase(name, pageable)
+        }
+        return subscribers.map { toDto(it) }
     }
 
     fun get(id: Long): SubscriberResponse? {
-        return getSubscriber(id).let { toDto(it) }
+        return toDto(getSubscriber(id))
     }
 
     fun update(id: Long, dto: SubscriberRequest): SubscriberResponse? {

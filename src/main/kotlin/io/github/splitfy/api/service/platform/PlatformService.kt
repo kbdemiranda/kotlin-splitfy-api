@@ -5,6 +5,8 @@ import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.web.platform.dto.PlatformResponse
 import jakarta.persistence.EntityNotFoundException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -31,11 +33,16 @@ class PlatformService(private val platformRepository: PlatformRepository) {
         return toDto(saved)
     }
 
-    fun findAll(): List<PlatformResponse> {
-        return platformRepository.findAll().map { toDto(it) }
+    fun findAll(pageable: Pageable, name: String?): Page<PlatformResponse> {
+        val platforms = if (name.isNullOrBlank()) {
+            platformRepository.findByDeletedAtIsNull(pageable)
+        } else {
+            platformRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase(name, pageable)
+        }
+        return platforms.map { toDto(it) }
     }
 
-    fun findById(id: Long): PlatformResponse? = getPlatform(id).let { toDto(it) }
+    fun findById(id: Long): PlatformResponse? = toDto(getPlatform(id))
 
     fun update(id: Long, dto: PlatformRequest): PlatformResponse? {
         val existing = getPlatform(id)
@@ -65,18 +72,20 @@ class PlatformService(private val platformRepository: PlatformRepository) {
             .orElseThrow { EntityNotFoundException("Platform not found with id: $id") }
     }
 
-    private fun toDto(entity: Platform): PlatformResponse = PlatformResponse(
-        id = entity.id,
-        name = entity.name,
-        price = entity.price,
-        url = entity.url,
-        serviceType = entity.serviceType,
-        totalSlots = entity.totalSlots,
-        availableSlots = entity.availableSlots,
-        createdAt = entity.createdAt,
-        updatedAt = entity.updatedAt,
-        deletedAt = entity.deletedAt,
-        billingCycle = entity.billingCycle,
-        billingDay = entity.billingDate
+    private fun toDto(platform: Platform): PlatformResponse{
+        return PlatformResponse(
+            id = platform.id,
+            name = platform.name,
+            price = platform.price,
+            url = platform.url,
+            serviceType = platform.serviceType,
+            totalSlots = platform.totalSlots,
+            availableSlots = platform.availableSlots,
+            createdAt = platform.createdAt,
+            updatedAt = platform.updatedAt,
+            deletedAt = platform.deletedAt,
+            billingCycle = platform.billingCycle,
+            billingDay = platform.billingDate
+        )
     }
 }
