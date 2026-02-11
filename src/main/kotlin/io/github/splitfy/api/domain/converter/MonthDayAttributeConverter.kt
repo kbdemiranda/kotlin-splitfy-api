@@ -1,4 +1,4 @@
-package io.github.splitfy.api.domain.converters
+package io.github.splitfy.api.domain.converter
 
 import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Converter
@@ -14,4 +14,3 @@ class MonthDayAttributeConverter : AttributeConverter<MonthDay, String> {
         return dbData?.let { MonthDay.parse(it) }
     }
 }
-

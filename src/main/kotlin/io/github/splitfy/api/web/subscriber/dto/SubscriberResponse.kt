@@ -1,10 +1,10 @@
-package io.github.splitfy.api.application.dto.output
+package io.github.splitfy.api.web.subscriber.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.LocalDateTime
 
 @Schema(description = "Subscriber data")
-data class SubscriberOut(
+data class SubscriberResponse(
     @Schema(description = "Subscriber ID")
     val id: Long?,
 

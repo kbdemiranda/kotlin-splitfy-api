@@ -1,8 +1,8 @@
-package io.github.splitfy.api.interfaces.web
+package io.github.splitfy.api.web.subscriber
 
-import io.github.splitfy.api.application.dto.input.SubscriberIn
-import io.github.splitfy.api.application.dto.output.SubscriberOut
-import io.github.splitfy.api.application.usecase.SubscriberService
+import io.github.splitfy.api.service.subscriber.SubscriberService
+import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
+import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
@@ -29,7 +29,7 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @GetMapping
-    fun list(): ResponseEntity<List<SubscriberOut>> {
+    fun list(): ResponseEntity<List<SubscriberResponse>> {
         val subscribers = subscriberService.list()
         return ResponseEntity.ok(subscribers)
     }
@@ -42,7 +42,7 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @GetMapping("/{id}")
-    fun get(@PathVariable id: Long): ResponseEntity<SubscriberOut> {
+    fun get(@PathVariable id: Long): ResponseEntity<SubscriberResponse> {
         val subscriber = subscriberService.get(id)
         return ResponseEntity.ok(subscriber)
     }
@@ -55,7 +55,7 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @PostMapping
-    fun create(@RequestBody subscriberIn: SubscriberIn): ResponseEntity<SubscriberOut> {
+    fun create(@RequestBody subscriberIn: SubscriberRequest): ResponseEntity<SubscriberResponse> {
         val subscriber = subscriberService.create(subscriberIn)
         return ResponseEntity.ok(subscriber)
     }
@@ -68,7 +68,7 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @RequestBody subscriberIn: SubscriberIn): ResponseEntity<SubscriberOut> {
+    fun update(@PathVariable id: Long, @RequestBody subscriberIn: SubscriberRequest): ResponseEntity<SubscriberResponse> {
         val subscriber = subscriberService.update(id, subscriberIn)
         return ResponseEntity.ok(subscriber)
     }

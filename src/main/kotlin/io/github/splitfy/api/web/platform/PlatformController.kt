@@ -1,8 +1,8 @@
-package io.github.splitfy.api.interfaces.web
+package io.github.splitfy.api.web.platform
 
-import io.github.splitfy.api.application.dto.input.PlatformIn
-import io.github.splitfy.api.application.dto.output.PlatformOut
-import io.github.splitfy.api.application.usecase.PlatformService
+import io.github.splitfy.api.service.platform.PlatformService
+import io.github.splitfy.api.web.platform.dto.PlatformRequest
+import io.github.splitfy.api.web.platform.dto.PlatformResponse
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.Operation
@@ -25,14 +25,14 @@ class PlatformController(private val service: PlatformService) {
         ]
     )
     @PostMapping
-    fun create(@OpenApiRequestBody(description = "Platform data to be created") @RequestBody dto: PlatformIn): ResponseEntity<PlatformOut> {
+    fun create(@OpenApiRequestBody(description = "Platform data to be created") @RequestBody dto: PlatformRequest): ResponseEntity<PlatformResponse> {
         val created = service.create(dto)
         return ResponseEntity.status(201).body(created)
     }
 
     @Operation(summary = "List platforms", description = "Returns all platforms")
     @GetMapping
-    fun list(): List<PlatformOut> = service.findAll()
+    fun list(): List<PlatformResponse> = service.findAll()
 
     @Operation(summary = "Get platform", description = "Returns a platform by ID")
     @ApiResponses(
@@ -42,7 +42,7 @@ class PlatformController(private val service: PlatformService) {
         ]
     )
     @GetMapping("/{id}")
-    fun get(@Parameter(description = "Platform ID") @PathVariable id: Long): ResponseEntity<PlatformOut> {
+    fun get(@Parameter(description = "Platform ID") @PathVariable id: Long): ResponseEntity<PlatformResponse> {
         val found = service.findById(id) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(found)
     }
@@ -57,8 +57,8 @@ class PlatformController(private val service: PlatformService) {
     @PutMapping("/{id}")
     fun update(
         @Parameter(description = "Platform ID") @PathVariable id: Long,
-        @OpenApiRequestBody(description = "Updated platform data") @RequestBody dto: PlatformIn
-    ): ResponseEntity<PlatformOut> {
+        @OpenApiRequestBody(description = "Updated platform data") @RequestBody dto: PlatformRequest
+    ): ResponseEntity<PlatformResponse> {
         val updated = service.update(id, dto) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(updated)
     }

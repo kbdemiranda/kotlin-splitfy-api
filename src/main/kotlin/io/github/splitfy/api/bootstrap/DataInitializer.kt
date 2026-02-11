@@ -1,11 +1,11 @@
-package io.github.splitfy.api.infrastructure.config
+package io.github.splitfy.api.bootstrap
 
 import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.ServiceType
-import io.github.splitfy.api.domain.models.Platform
-import io.github.splitfy.api.domain.models.Subscriber
-import io.github.splitfy.api.domain.repository.PlatformRepository
-import io.github.splitfy.api.domain.repository.SubscriberRepository
+import io.github.splitfy.api.domain.entity.Platform
+import io.github.splitfy.api.domain.entity.Subscriber
+import io.github.splitfy.api.repository.PlatformRepository
+import io.github.splitfy.api.repository.SubscriberRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -35,7 +35,7 @@ class DataInitializer(
             return
         }
 
-        val Subscriber = listOf(
+        val subscribers = listOf(
             Subscriber(
                 subscriberToken = UUID.randomUUID(),
                 name = "John Doe",
@@ -48,7 +48,7 @@ class DataInitializer(
             )
         )
 
-        subscriberRepository.saveAll(Subscriber)
+        subscriberRepository.saveAll(subscribers)
         logger.info("Subscribers data initialized successfully")
     }
 
@@ -106,4 +106,3 @@ class DataInitializer(
         logger.info("Inserted ${platforms.size} sample platforms into H2 database")
     }
 }
-

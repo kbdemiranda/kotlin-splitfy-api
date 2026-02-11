@@ -1,9 +1,9 @@
-package io.github.splitfy.api.application.dto.input
+package io.github.splitfy.api.web.subscriber.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
 
 @Schema(description = "Subscriber input data")
-data class SubscriberIn(
+data class SubscriberRequest(
     @Schema(description = "Subscriber name", example = "Ana Silva")
     val name: String,
     @Schema(description = "Subscriber email", example = "ana.silva@example.com")

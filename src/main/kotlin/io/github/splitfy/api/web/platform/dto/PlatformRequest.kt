@@ -1,17 +1,13 @@
-package io.github.splitfy.api.application.dto.output
+package io.github.splitfy.api.web.platform.dto
 
 import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.ServiceType
 import io.swagger.v3.oas.annotations.media.Schema
 import java.math.BigDecimal
-import java.time.LocalDateTime
 import java.time.MonthDay
 
-@Schema(description = "Platform data")
-data class PlatformOut(
-    @Schema(description = "Platform ID")
-    val id: Long?,
-
+@Schema(description = "Subscription platform input data")
+data class PlatformRequest(
     @Schema(description = "Platform name", example = "Netflix")
     val name: String,
 
@@ -29,15 +25,6 @@ data class PlatformOut(
 
     @Schema(description = "Available slots", example = "2")
     val availableSlots: Int,
-
-    @Schema(description = "Created at")
-    val createdAt: LocalDateTime,
-
-    @Schema(description = "Updated at")
-    val updatedAt: LocalDateTime? = null,
-
-    @Schema(description = "Deleted at")
-    val deletedAt: LocalDateTime? = null,
 
     @Schema(description = "Billing cycle")
     val billingCycle: BillingCycle = BillingCycle.MONTHLY,
