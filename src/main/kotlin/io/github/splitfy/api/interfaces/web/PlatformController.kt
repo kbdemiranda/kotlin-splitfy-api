@@ -1,6 +1,7 @@
 package io.github.splitfy.api.interfaces.web
 
-import io.github.splitfy.api.application.dto.PlatformDto
+import io.github.splitfy.api.application.dto.input.PlatformIn
+import io.github.splitfy.api.application.dto.output.PlatformOut
 import io.github.splitfy.api.application.usecase.PlatformService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -9,67 +10,69 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.parameters.RequestBody as OpenApiRequestBody
 import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.tags.Tag
 
 @RestController
 @RequestMapping("/platforms")
+@Tag(name = "Platforms", description = "Operations related to subscription platforms")
 class PlatformController(private val service: PlatformService) {
 
-    @Operation(summary = "Criar plataforma", description = "Cria uma nova plataforma de assinatura")
+    @Operation(summary = "Create platform", description = "Creates a new subscription platform")
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "201", description = "Criado com sucesso"),
-            ApiResponse(responseCode = "400", description = "Requisição inválida")
+            ApiResponse(responseCode = "201", description = "Created successfully"),
+            ApiResponse(responseCode = "400", description = "Invalid request")
         ]
     )
     @PostMapping
-    fun create(@OpenApiRequestBody(description = "Dados da plataforma a ser criada") @RequestBody dto: PlatformDto): ResponseEntity<PlatformDto> {
+    fun create(@OpenApiRequestBody(description = "Platform data to be created") @RequestBody dto: PlatformIn): ResponseEntity<PlatformOut> {
         val created = service.create(dto)
         return ResponseEntity.status(201).body(created)
     }
 
-    @Operation(summary = "Listar plataformas", description = "Retorna todas as plataformas")
+    @Operation(summary = "List platforms", description = "Returns all platforms")
     @GetMapping
-    fun list(): List<PlatformDto> = service.findAll()
+    fun list(): List<PlatformOut> = service.findAll()
 
-    @Operation(summary = "Obter plataforma", description = "Retorna uma plataforma por id")
+    @Operation(summary = "Get platform", description = "Returns a platform by ID")
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "200", description = "Encontrado"),
-            ApiResponse(responseCode = "404", description = "Não encontrado")
+            ApiResponse(responseCode = "200", description = "Found"),
+            ApiResponse(responseCode = "404", description = "Not found")
         ]
     )
     @GetMapping("/{id}")
-    fun get(@Parameter(description = "ID da plataforma") @PathVariable id: Long): ResponseEntity<PlatformDto> {
+    fun get(@Parameter(description = "Platform ID") @PathVariable id: Long): ResponseEntity<PlatformOut> {
         val found = service.findById(id) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(found)
     }
 
-    @Operation(summary = "Atualizar plataforma", description = "Atualiza uma plataforma existente")
+    @Operation(summary = "Update platform", description = "Updates an existing platform")
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "200", description = "Atualizado"),
-            ApiResponse(responseCode = "404", description = "Não encontrado")
+            ApiResponse(responseCode = "200", description = "Updated"),
+            ApiResponse(responseCode = "404", description = "Not found")
         ]
     )
     @PutMapping("/{id}")
     fun update(
-        @Parameter(description = "ID da plataforma") @PathVariable id: Long,
-        @OpenApiRequestBody(description = "Dados atualizados da plataforma") @RequestBody dto: PlatformDto
-    ): ResponseEntity<PlatformDto> {
+        @Parameter(description = "Platform ID") @PathVariable id: Long,
+        @OpenApiRequestBody(description = "Updated platform data") @RequestBody dto: PlatformIn
+    ): ResponseEntity<PlatformOut> {
         val updated = service.update(id, dto) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(updated)
     }
 
-    @Operation(summary = "Deletar plataforma", description = "Marca uma plataforma como deletada")
+    @Operation(summary = "Delete platform", description = "Marks a platform as deleted")
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "204", description = "Deletado"),
-            ApiResponse(responseCode = "404", description = "Não encontrado")
+            ApiResponse(responseCode = "204", description = "Deleted"),
+            ApiResponse(responseCode = "404", description = "Not found")
         ]
     )
     @DeleteMapping("/{id}")
-    fun delete(@Parameter(description = "ID da plataforma") @PathVariable id: Long): ResponseEntity<Void> {
+    fun delete(@Parameter(description = "Platform ID") @PathVariable id: Long): ResponseEntity<Void> {
         val deleted = service.delete(id)
-        return if (deleted) ResponseEntity.noContent().build() else ResponseEntity.notFound().build()
+        return ResponseEntity.noContent().build()
     }
 }

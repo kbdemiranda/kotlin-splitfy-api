@@ -3,10 +3,11 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:h2:mem:splitfy;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ''
+    # Homolog (staging) uses a Postgres-compatible DB
+    url: ${HOMOLOG_JDBC_URL:jdbc:postgresql://localhost:25432/splitfy}
+    driver-class-name: org.postgresql.Driver
+    username: ${HOMOLOG_DB_USER:postgres}
+    password: ${HOMOLOG_DB_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: update

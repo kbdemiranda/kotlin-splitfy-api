@@ -1,29 +1,32 @@
 package io.github.splitfy.api.application.usecase
 
-import io.github.splitfy.api.application.dto.PlatformDto
+import io.github.splitfy.api.application.dto.input.PlatformIn
+import io.github.splitfy.api.application.dto.output.PlatformOut
 import io.github.splitfy.api.application.mapper.PlatformMapper
+import io.github.splitfy.api.domain.models.Platform
 import io.github.splitfy.api.domain.repository.PlatformRepository
+import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 @Transactional
-class PlatformService(private val repository: PlatformRepository) {
+class PlatformService(private val platformRepository: PlatformRepository) {
 
-    fun create(dto: PlatformDto): PlatformDto {
-        val entity = PlatformMapper.toEntity(dto.copy(id = null))
-        val saved = repository.save(entity)
+    fun create(dto: PlatformIn): PlatformOut {
+        val entity = PlatformMapper.toEntity(dto.copy())
+        val saved = platformRepository.save(entity)
         return PlatformMapper.toDto(saved)
     }
 
-    fun findAll(): List<PlatformDto> = repository.findAll().map { PlatformMapper.toDto(it) }
+    fun findAll(): List<PlatformOut> = platformRepository.findAll().map { PlatformMapper.toDto(it) }
 
-    fun findById(id: Long): PlatformDto? = repository.findByIdOrNull(id)?.let { PlatformMapper.toDto(it) }
+    fun findById(id: Long): PlatformOut? = getPlatform(id).let { PlatformMapper.toDto(it) }
 
-    fun update(id: Long, dto: PlatformDto): PlatformDto? {
-        val existing = repository.findByIdOrNull(id) ?: return null
-        val updated = existing.copy(
+    fun update(id: Long, dto: PlatformIn): PlatformOut? {
+        val updated = getPlatform(id).copy(
             name = dto.name,
             price = dto.price,
             url = dto.url,
@@ -31,17 +34,20 @@ class PlatformService(private val repository: PlatformRepository) {
             totalSlots = dto.totalSlots,
             availableSlots = dto.availableSlots,
             updatedAt = java.time.LocalDateTime.now(),
-            deletedAt = dto.deletedAt,
             billingCycle = dto.billingCycle,
             billingDate = dto.billingDay
         )
-        return PlatformMapper.toDto(repository.save(updated))
+        return PlatformMapper.toDto(platformRepository.save(updated))
     }
 
-    fun delete(id: Long): Boolean {
-        if (!repository.existsById(id)) return false
-        repository.deleteById(id)
-        return true
+    fun delete(id: Long) {
+        val platform = getPlatform(id).copy(deletedAt = LocalDateTime.now())
+        platformRepository.save(platform);
+    }
+
+
+    fun getPlatform(id: Long): Platform {
+        return platformRepository.findById(id).orElseThrow { EntityNotFoundException("Platform not found with id: $id") }
     }
 }
 

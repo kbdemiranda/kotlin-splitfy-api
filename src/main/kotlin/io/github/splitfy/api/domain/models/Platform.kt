@@ -4,9 +4,11 @@ import io.github.splitfy.api.domain.converters.MonthDayAttributeConverter
 import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.ServiceType
 import jakarta.persistence.*
+import org.hibernate.annotations.SQLDelete
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.time.MonthDay
+import java.util.UUID
 
 @Entity
 @Table(name = "platforms")
@@ -14,6 +16,9 @@ data class Platform(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
+
+    @Column(name = "platform_token")
+    val platformToken: UUID,
 
     @Column(name = "name", nullable = false)
     val name: String,
