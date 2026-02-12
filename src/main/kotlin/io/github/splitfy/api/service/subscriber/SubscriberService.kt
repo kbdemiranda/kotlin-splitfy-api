@@ -1,10 +1,15 @@
 package io.github.splitfy.api.service.subscriber
 
 import io.github.splitfy.api.domain.entity.Subscriber
+import io.github.splitfy.api.domain.entity.SubscriberPlatform
+import io.github.splitfy.api.repository.PlatformRepository
+import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
+import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import jakarta.persistence.EntityNotFoundException
+import org.apache.coyote.BadRequestException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -14,7 +19,11 @@ import java.util.UUID
 
 @Service
 @Transactional
-class SubscriberService(private val subscriberRepository: SubscriberRepository) {
+class SubscriberService(
+    private val subscriberRepository: SubscriberRepository,
+    private val platformRepository: PlatformRepository,
+    private val subscriberPlatformRepository: SubscriberPlatformRepository
+) {
 
     fun create(dto: SubscriberRequest): SubscriberResponse {
         val entity = Subscriber(
@@ -69,5 +78,85 @@ class SubscriberService(private val subscriberRepository: SubscriberRepository) 
             updatedAt = entity.updatedAt,
             deletedAt = entity.deletedAt,
         )
+    }
+
+    fun associatePlatforms(id: Long, platformAssociationRequest: List<PlatformAssociationRequest>) {
+        if (platformAssociationRequest.isEmpty()) return
+
+        val platformIds = platformAssociationRequest.flatMap { it.platformIds }.toSet()
+        if (platformIds.isEmpty()) return
+
+        val subscriber = getSubscriber(id)
+
+        for (platformId in platformIds) {
+            val platform = platformRepository.findById(platformId)
+                .orElseThrow { EntityNotFoundException("Platform not found with id: $platformId") }
+
+            if (platform.deletedAt != null) {
+                throw EntityNotFoundException("Platform not found with id: $platformId")
+            }
+
+            if (platform.availableSlots <= 0) {
+                throw BadRequestException("Plataforma sem vagas disponíveis")
+            }
+
+            val alreadyAssociated = subscriber.id?.let { subscriberPlatformRepository.existsBySubscriberIdAndPlatformId(it, platformId) } ?: false
+            if (alreadyAssociated) {
+                throw BadRequestException("Subscriber already associated with platform id: $platformId")
+            }
+
+            val association = SubscriberPlatform(
+                subscriber = subscriber,
+                platform = platform,
+                createdAt = LocalDateTime.now()
+            )
+
+            subscriberPlatformRepository.save(association)
+
+            val updatedPlatform = platform.copy(
+                availableSlots = platform.availableSlots - 1,
+                updatedAt = LocalDateTime.now()
+            )
+            platformRepository.save(updatedPlatform)
+        }
+    }
+
+    fun disassociatePlatforms(id: Long, platformAssociationRequest: List<PlatformAssociationRequest>) {
+        if (platformAssociationRequest.isEmpty()) return
+
+        val platformIds = platformAssociationRequest.flatMap { it.platformIds }.toSet()
+        if (platformIds.isEmpty()) return
+
+        val subscriber = getSubscriber(id)
+
+        for (platformId in platformIds) {
+            val platform = platformRepository.findById(platformId)
+                .orElseThrow { EntityNotFoundException("Platform not found with id: $platformId") }
+
+            if (platform.deletedAt != null) {
+                throw EntityNotFoundException("Platform not found with id: $platformId")
+            }
+
+            val association = subscriber.id?.let {
+                subscriberPlatformRepository.findBySubscriberIdAndPlatformId(it, platformId)
+            }
+
+            if (association == null) {
+                throw BadRequestException("Subscriber not associated with platform id: $platformId")
+            }
+
+            val updatedAssociation = association.copy(
+                isActive = false,
+                unsubscribedAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now()
+            )
+            subscriberPlatformRepository.save(updatedAssociation)
+
+            val updatedPlatform = platform.copy(
+                availableSlots = platform.availableSlots + 1,
+                updatedAt = LocalDateTime.now()
+            )
+            platformRepository.save(updatedPlatform)
+        }
     }
 }

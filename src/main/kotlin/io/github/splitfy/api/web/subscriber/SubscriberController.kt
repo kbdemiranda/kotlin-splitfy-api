@@ -1,6 +1,7 @@
 package io.github.splitfy.api.web.subscriber
 
 import io.github.splitfy.api.service.subscriber.SubscriberService
+import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -93,6 +94,26 @@ class SubscriberController (private val subscriberService: SubscriberService) {
     fun delete(@PathVariable id: Long): ResponseEntity<Void> {
         subscriberService.delete(id)
         return ResponseEntity.noContent().build()
+    }
+
+    @Operation(summary = "Associate Platforms")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Associated"),
+            ApiResponse(responseCode = "400", description = "Invalid platform IDs"),
+            ApiResponse(responseCode = "404", description = "Not found")
+        ]
+    )
+    @PostMapping("/{id}/associate")
+    fun associate(@PathVariable id: Long, @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>): ResponseEntity<Void>{
+        subscriberService.associatePlatforms(id, platformAssociationRequest)
+        return ResponseEntity.ok().build<Void>()
+    }
+
+    @PutMapping("/{id}/disassociate")
+    fun disassociate(@PathVariable id: Long, @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>): ResponseEntity<Void>{
+        subscriberService.disassociatePlatforms(id, platformAssociationRequest);
+        return ResponseEntity.ok().build<Void>();
     }
 
 }
