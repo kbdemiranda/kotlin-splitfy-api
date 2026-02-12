@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: kotlin-splitfy-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:25432/splitfy}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Defaults (can be overridden per-profile)
+server:
+  port: 8080
+
+splitfy:
+  jwt:
+    secret: ${JWT_SECRET:3f636ec199b14a2dad7bce42931c540f9d7dd28a6e864890b57e0b8e73f8f3ad}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+  admin:
+    email: ${ADMIN_EMAIL:admin@splitfy.local}
+    password: ${ADMIN_PASSWORD:Admin@123}
+  mail:
+    from: ${MAIL_FROM}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  swagger-ui:
+    customCssUrl: /swagger-ui/custom.css

@@ -1,8 +1,8 @@
 package io.github.splitfy.api.web.user.dto
 
+import io.github.splitfy.api.domain.enums.ProfileName
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.util.UUID
 
@@ -20,8 +20,9 @@ data class UserCreateRequest(
     @field:Size(min = 8, max = 120)
     val password: String,
 
-    @field:NotNull
-    val profileId: UUID,
+    val profileId: UUID? = null,
+
+    val profileName: ProfileName? = null,
 
     val isEnabled: Boolean = true,
 )

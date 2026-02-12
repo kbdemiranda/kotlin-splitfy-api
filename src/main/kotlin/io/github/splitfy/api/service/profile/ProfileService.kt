@@ -1,6 +1,7 @@
 package io.github.splitfy.api.service.profile
 
 import io.github.splitfy.api.domain.entity.Profile
+import io.github.splitfy.api.domain.enums.ProfileName
 import io.github.splitfy.api.repository.ProfileRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.web.profile.dto.ProfileRequest
@@ -59,6 +60,11 @@ class ProfileService(
     fun getProfile(id: UUID): Profile {
         return profileRepository.findById(id)
             .orElseThrow { EntityNotFoundException("Profile not found with id: $id") }
+    }
+
+    fun getProfileByName(name: ProfileName): Profile {
+        return profileRepository.findByName(name)
+            ?: throw EntityNotFoundException("Profile not found with name: $name")
     }
 
     private fun toResponse(profile: Profile): ProfileResponse {

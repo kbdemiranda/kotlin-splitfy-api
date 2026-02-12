@@ -72,21 +72,21 @@ class DataInitializer(
             Platform(
                 platformToken = UUID.randomUUID(),
                 name = "Spotify",
-                price = BigDecimal("9.99"),
+                price = BigDecimal("42.00"),
                 url = "https://www.spotify.com",
                 serviceType = ServiceType.STREAMING_MUSIC,
                 totalSlots = 6,
-                availableSlots = 5,
+                availableSlots = 6,
                 billingCycle = BillingCycle.MONTHLY
             ),
             Platform(
                 platformToken = UUID.randomUUID(),
-                name = "GitHub",
-                price = BigDecimal("7.00"),
-                url = "https://github.com",
-                serviceType = ServiceType.SOFTWARE,
-                totalSlots = 1,
-                availableSlots = 1,
+                name = "HBO MAX",
+                price = BigDecimal("16.00"),
+                url = "https://hbomax.com",
+                serviceType = ServiceType.STREAMING_VIDEO,
+                totalSlots = 5,
+                availableSlots = 5,
                 billingCycle = BillingCycle.MONTHLY
             ),
             Platform(

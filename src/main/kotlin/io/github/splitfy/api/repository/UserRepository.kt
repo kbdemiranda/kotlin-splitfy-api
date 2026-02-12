@@ -1,6 +1,7 @@
 package io.github.splitfy.api.repository
 
 import io.github.splitfy.api.domain.entity.User
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -15,6 +16,7 @@ interface UserRepository : JpaRepository<User, UUID> {
 
     fun findByDeletedAtIsNullAndNameContainingIgnoreCase(name: String, pageable: Pageable): Page<User>
 
+    @EntityGraph(attributePaths = ["profile"])
     fun findByEmailIgnoreCaseAndDeletedAtIsNull(email: String): User?
 
     fun existsByEmailIgnoreCaseAndDeletedAtIsNull(email: String): Boolean

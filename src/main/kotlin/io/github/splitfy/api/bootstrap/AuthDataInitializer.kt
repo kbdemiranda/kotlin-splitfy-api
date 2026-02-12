@@ -29,16 +29,17 @@ class AuthDataInitializer(
     }
 
     private fun ensureProfiles(): List<Profile> {
-        val existingProfiles = profileRepository.findByNameIn(ProfileName.entries)
-        val existingNames = existingProfiles.map { it.name }.toSet()
+        val createdProfiles = mutableListOf<ProfileName>()
 
-        val missingProfiles = ProfileName.entries
-            .filterNot { existingNames.contains(it) }
-            .map { Profile(name = it) }
+        for (profileName in ProfileName.entries) {
+            if (!profileRepository.existsByName(profileName)) {
+                profileRepository.save(Profile(name = profileName))
+                createdProfiles.add(profileName)
+            }
+        }
 
-        if (missingProfiles.isNotEmpty()) {
-            profileRepository.saveAll(missingProfiles)
-            logger.info("Created missing profiles: {}", missingProfiles.map { it.name })
+        if (createdProfiles.isNotEmpty()) {
+            logger.info("Created default profiles: {}", createdProfiles)
         }
 
         return profileRepository.findByNameIn(ProfileName.entries)

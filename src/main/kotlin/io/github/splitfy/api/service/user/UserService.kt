@@ -1,7 +1,10 @@
 package io.github.splitfy.api.service.user
 
 import io.github.splitfy.api.domain.entity.User
+import io.github.splitfy.api.domain.entity.Profile
+import io.github.splitfy.api.domain.enums.ProfileName
 import io.github.splitfy.api.repository.UserRepository
+import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.profile.ProfileService
 import io.github.splitfy.api.web.user.dto.ProfileSummaryResponse
 import io.github.splitfy.api.web.user.dto.UserCreateRequest
@@ -21,6 +24,7 @@ import java.util.UUID
 class UserService(
     private val userRepository: UserRepository,
     private val profileService: ProfileService,
+    private val emailService: EmailService,
     private val passwordEncoder: PasswordEncoder,
 ) {
 
@@ -29,7 +33,7 @@ class UserService(
             throw IllegalArgumentException("Email already in use: ${request.email}")
         }
 
-        val profile = profileService.getProfile(request.profileId)
+        val profile = resolveProfileForCreate(request)
         val user = User(
             name = request.name,
             email = request.email.lowercase(),
@@ -39,6 +43,7 @@ class UserService(
         )
 
         val saved = userRepository.save(user)
+        sendWelcomeEmail(saved)
         return toResponse(saved)
     }
 
@@ -69,7 +74,8 @@ class UserService(
         request.name?.let { user.name = it }
         nextEmail?.let { user.email = it }
         request.password?.let { user.password = encodePassword(it) }
-        request.profileId?.let { user.profile = profileService.getProfile(it) }
+        val profile = resolveProfileForUpdate(request)
+        profile?.let { user.profile = it }
         request.isEnabled?.let { user.isEnabled = it }
 
         val saved = userRepository.save(user)
@@ -123,5 +129,46 @@ class UserService(
     private fun encodePassword(rawPassword: String): String {
         return passwordEncoder.encode(rawPassword)
             ?: throw IllegalStateException("Password encoding failed")
+    }
+
+    private fun sendWelcomeEmail(user: User) {
+        val subject = "Bem-vindo ao Splitfy"
+        val htmlBody = """
+            <html>
+              <body>
+                <h2>Bem-vindo(a), ${user.name}!</h2>
+                <p>Seu usuário foi criado com sucesso no Splitfy.</p>
+                <p>Agora você já pode acessar a plataforma com o e-mail <strong>${user.email}</strong>.</p>
+              </body>
+            </html>
+        """.trimIndent()
+
+        emailService.sendHtml(
+            to = user.email,
+            subject = subject,
+            htmlBody = htmlBody,
+        )
+    }
+
+    private fun resolveProfileForCreate(request: UserCreateRequest): Profile {
+        if (request.profileId != null && request.profileName != null) {
+            throw IllegalArgumentException("Provide either profileId or profileName, not both")
+        }
+
+        request.profileId?.let { return profileService.getProfile(it) }
+        request.profileName?.let { return profileService.getProfileByName(it) }
+
+        return profileService.getProfileByName(ProfileName.VIEWER)
+    }
+
+    private fun resolveProfileForUpdate(request: UserUpdateRequest): Profile? {
+        if (request.profileId != null && request.profileName != null) {
+            throw IllegalArgumentException("Provide either profileId or profileName, not both")
+        }
+
+        request.profileId?.let { return profileService.getProfile(it) }
+        request.profileName?.let { return profileService.getProfileByName(it) }
+
+        return null
     }
 }

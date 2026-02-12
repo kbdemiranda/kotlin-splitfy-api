@@ -21,6 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableConfigurationProperties(JwtProperties::class)
 class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val accessLoggingFilter: AccessLoggingFilter,
     private val userDetailsService: CustomUserDetailsService,
 ) {
 
@@ -56,8 +57,14 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it.requestMatchers(
                     "/auth/login",
+                    "/users",
+                    "/docs",
+                    "/docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
+                    "/webjars/**",
+                    "/v3/api-docs",
+                    "/v3/api-docs.yaml",
                     "/v3/api-docs/**",
                     "/actuator/health",
                     "/h2-console/**",
@@ -69,6 +76,7 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.PUT, "/profiles/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.DELETE, "/profiles/**").hasRole("ADMIN")
 
+                it.requestMatchers(HttpMethod.POST, "/users").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/users/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.PUT, "/users/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("ADMIN")
@@ -87,6 +95,7 @@ class SecurityConfig(
                 it.anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterAfter(accessLoggingFilter, JwtAuthenticationFilter::class.java)
 
         return http.build()
     }
