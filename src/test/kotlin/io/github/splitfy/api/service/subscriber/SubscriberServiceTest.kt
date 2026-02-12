@@ -67,7 +67,7 @@ class SubscriberServiceTest {
 
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber))
         whenever(platformRepository.findById(2L)).thenReturn(Optional.of(platform))
-        whenever(subscriberPlatformRepository.existsBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(false)
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(null)
         whenever(subscriberPlatformRepository.save(any())).thenAnswer { it.getArgument(0) as SubscriberPlatform }
         whenever(platformRepository.save(any())).thenAnswer { it.getArgument(0) as Platform }
 
@@ -105,9 +105,20 @@ class SubscriberServiceTest {
 
     @Test
     fun `associatePlatforms already associated throws BadRequestException`() {
+        val subscriber = sampleSubscriber()
+        val platform = samplePlatform()
+        val association = SubscriberPlatform(
+            id = 10L,
+            subscriber = subscriber,
+            platform = platform,
+            isActive = true,
+            deletedAt = null,
+            createdAt = LocalDateTime.now()
+        )
+
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(sampleSubscriber()))
-        whenever(platformRepository.findById(2L)).thenReturn(Optional.of(samplePlatform()))
-        whenever(subscriberPlatformRepository.existsBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(true)
+        whenever(platformRepository.findById(2L)).thenReturn(Optional.of(platform))
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(association)
 
         val req = listOf(PlatformAssociationRequest(platformIds = listOf(2L)))
 
@@ -125,8 +136,8 @@ class SubscriberServiceTest {
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber))
         whenever(platformRepository.findById(2L)).thenReturn(Optional.of(platform2))
         whenever(platformRepository.findById(3L)).thenReturn(Optional.of(platform3))
-        whenever(subscriberPlatformRepository.existsBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(false)
-        whenever(subscriberPlatformRepository.existsBySubscriberIdAndPlatformId(1L, 3L)).thenReturn(false)
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(null)
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 3L)).thenReturn(null)
         whenever(subscriberPlatformRepository.save(any())).thenAnswer { it.getArgument(0) as SubscriberPlatform }
         whenever(platformRepository.save(any())).thenAnswer { it.getArgument(0) as Platform }
 
@@ -153,6 +164,36 @@ class SubscriberServiceTest {
     }
 
     @Test
+    fun `associatePlatforms reactivates inactive association`() {
+        val subscriber = sampleSubscriber()
+        val platform = samplePlatform(availableSlots = 3)
+        val oldDeletedAt = LocalDateTime.now().minusDays(1)
+        val association = SubscriberPlatform(
+            id = 10L,
+            subscriber = subscriber,
+            platform = platform,
+            isActive = false,
+            deletedAt = oldDeletedAt,
+            createdAt = LocalDateTime.now().minusDays(2)
+        )
+
+        whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber))
+        whenever(platformRepository.findById(2L)).thenReturn(Optional.of(platform))
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(association)
+        whenever(subscriberPlatformRepository.save(any())).thenAnswer { it.getArgument(0) as SubscriberPlatform }
+        whenever(platformRepository.save(any())).thenAnswer { it.getArgument(0) as Platform }
+
+        val req = listOf(PlatformAssociationRequest(platformIds = listOf(2L)))
+
+        service.associatePlatforms(1L, req)
+
+        verify(subscriberPlatformRepository).save(argThat {
+            isActive && this.deletedAt == null && updatedAt != null
+        })
+        verify(platformRepository).save(argThat { availableSlots == 2 })
+    }
+
+    @Test
     fun `disassociatePlatforms success deactivates association and increments slots`() {
         val subscriber = sampleSubscriber()
         val platform = samplePlatform(availableSlots = 1)
@@ -176,7 +217,9 @@ class SubscriberServiceTest {
 
         service.disassociatePlatforms(1L, req)
 
-        verify(subscriberPlatformRepository).save(argThat { isActive == false })
+        verify(subscriberPlatformRepository).save(argThat {
+            isActive == false && deletedAt != null && updatedAt == null
+        })
         verify(platformRepository).save(argThat { availableSlots == 2 })
     }
 

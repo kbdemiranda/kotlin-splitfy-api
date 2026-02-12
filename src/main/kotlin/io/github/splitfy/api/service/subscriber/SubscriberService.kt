@@ -100,18 +100,32 @@ class SubscriberService(
                 throw BadRequestException("Plataforma sem vagas disponíveis")
             }
 
-            val alreadyAssociated = subscriber.id?.let { subscriberPlatformRepository.existsBySubscriberIdAndPlatformId(it, platformId) } ?: false
-            if (alreadyAssociated) {
-                throw BadRequestException("Subscriber already associated with platform id: $platformId")
+            val existingAssociation = subscriber.id?.let {
+                subscriberPlatformRepository.findBySubscriberIdAndPlatformId(it, platformId)
             }
 
-            val association = SubscriberPlatform(
-                subscriber = subscriber,
-                platform = platform,
-                createdAt = LocalDateTime.now()
-            )
-
-            subscriberPlatformRepository.save(association)
+            when {
+                existingAssociation == null -> {
+                    val association = SubscriberPlatform(
+                        subscriber = subscriber,
+                        platform = platform,
+                        createdAt = LocalDateTime.now()
+                    )
+                    subscriberPlatformRepository.save(association)
+                }
+                existingAssociation.isActive && existingAssociation.deletedAt == null -> {
+                    throw BadRequestException("Subscriber already associated with platform id: $platformId")
+                }
+                else -> {
+                    val reactivatedAssociation = existingAssociation.copy(
+                        isActive = true,
+                        unsubscribedAt = null,
+                        updatedAt = LocalDateTime.now(),
+                        deletedAt = null
+                    )
+                    subscriberPlatformRepository.save(reactivatedAssociation)
+                }
+            }
 
             val updatedPlatform = platform.copy(
                 availableSlots = platform.availableSlots - 1,
@@ -141,14 +155,14 @@ class SubscriberService(
                 subscriberPlatformRepository.findBySubscriberIdAndPlatformId(it, platformId)
             }
 
-            if (association == null) {
+            if (association == null || !association.isActive || association.deletedAt != null) {
                 throw BadRequestException("Subscriber not associated with platform id: $platformId")
             }
 
             val updatedAssociation = association.copy(
                 isActive = false,
                 unsubscribedAt = LocalDateTime.now(),
-                updatedAt = LocalDateTime.now()
+                deletedAt = LocalDateTime.now()
             )
             subscriberPlatformRepository.save(updatedAssociation)
 
