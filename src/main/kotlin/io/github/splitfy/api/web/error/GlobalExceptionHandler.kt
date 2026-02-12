@@ -5,9 +5,13 @@ import jakarta.servlet.http.HttpServletRequest
 import org.apache.coyote.BadRequestException
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataAccessException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -70,6 +74,39 @@ class GlobalExceptionHandler {
             message = ex.mostSpecificCause?.message ?: ex.message ?: "Database error",
             request = request,
             ex = ex
+        )
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleConflict(ex: DataIntegrityViolationException, request: HttpServletRequest): ResponseEntity<ApiErrorResponse> {
+        return buildResponse(
+            status = HttpStatus.CONFLICT,
+            code = "CONFLICT",
+            message = ex.mostSpecificCause?.message ?: ex.message ?: "Conflict",
+            request = request,
+            ex = ex,
+        )
+    }
+
+    @ExceptionHandler(BadCredentialsException::class, AuthenticationCredentialsNotFoundException::class)
+    fun handleUnauthorized(ex: Exception, request: HttpServletRequest): ResponseEntity<ApiErrorResponse> {
+        return buildResponse(
+            status = HttpStatus.UNAUTHORIZED,
+            code = "UNAUTHORIZED",
+            message = ex.message ?: "Unauthorized",
+            request = request,
+            ex = ex,
+        )
+    }
+
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleForbidden(ex: AccessDeniedException, request: HttpServletRequest): ResponseEntity<ApiErrorResponse> {
+        return buildResponse(
+            status = HttpStatus.FORBIDDEN,
+            code = "FORBIDDEN",
+            message = ex.message ?: "Forbidden",
+            request = request,
+            ex = ex,
         )
     }
 

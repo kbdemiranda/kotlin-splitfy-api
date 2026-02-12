@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException
 import org.apache.coyote.BadRequestException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -49,6 +50,7 @@ class SubscriberService(
         return toDto(getSubscriber(id))
     }
 
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
     fun update(id: Long, dto: SubscriberRequest): SubscriberResponse? {
         val updated = getSubscriber(id).copy(
             name = dto.name,
@@ -80,6 +82,7 @@ class SubscriberService(
         )
     }
 
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
     fun associatePlatforms(id: Long, platformAssociationRequest: List<PlatformAssociationRequest>) {
         if (platformAssociationRequest.isEmpty()) return
 
@@ -135,6 +138,7 @@ class SubscriberService(
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
     fun disassociatePlatforms(id: Long, platformAssociationRequest: List<PlatformAssociationRequest>) {
         if (platformAssociationRequest.isEmpty()) return
 
