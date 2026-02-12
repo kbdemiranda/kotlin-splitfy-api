@@ -45,24 +45,26 @@ class BillingServiceImpl(
         val counts = subscriberPlatformRepository.countActiveParticipantsByPlatformIds(platformIds)
         val countsByPlatform = counts.associateBy { it.getPlatformId() }
 
-        val items = associations.map { assoc ->
+        // build items plus a flag indicating if this service should be included in this month's total
+        val itemsWithInclude = associations.mapNotNull { assoc ->
             val platform = assoc.platform
             val participantsCount = countsByPlatform[platform.id!!]?.getCount() ?: 0L
 
             if (participantsCount == 0L) {
-                null // skip per rule
+                // skip from items/results per requirement
+                null
             } else {
                 val price = platform.price
                 val monthlyServiceAmount = when (platform.billingCycle) {
                     io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> price
                     io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> price.divide(BigDecimal(12), INTERMEDIATE_SCALE, ROUNDING)
-                    else -> price // for SEMI_ANNUAL or others, default to full price (could be extended later)
+                    else -> price
                 }
 
                 val userShare = monthlyServiceAmount.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
                     .setScale(FINAL_SCALE, ROUNDING)
 
-                BillingItemDto(
+                val item = BillingItemDto(
                     serviceId = platform.id!!,
                     serviceName = platform.name,
                     billingCycle = platform.billingCycle,
@@ -70,10 +72,27 @@ class BillingServiceImpl(
                     participantsCount = participantsCount.toInt(),
                     userMonthlyShare = userShare
                 )
-            }
-        }.filterNotNull()
 
-        val total = items.fold(BigDecimal.ZERO) { acc, item -> acc.add(item.userMonthlyShare) }
+                // Determine whether to include this service/userShare in the totalMonthlyDue
+                val includeInTotal = when (platform.billingCycle) {
+                    io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> true
+                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> {
+                        // include only if reference month matches platform billing month
+                        val billingDate = platform.billingDate
+                        billingDate != null && billingDate.monthValue == refMonth.monthValue
+                    }
+                    else -> false
+                }
+
+                Pair(item, includeInTotal)
+            }
+        }
+
+        val items = itemsWithInclude.map { it.first }
+
+        val total = itemsWithInclude
+            .filter { it.second }
+            .fold(BigDecimal.ZERO) { acc, pair -> acc.add(pair.first.userMonthlyShare) }
             .setScale(FINAL_SCALE, ROUNDING)
 
         return BillingResponse(
