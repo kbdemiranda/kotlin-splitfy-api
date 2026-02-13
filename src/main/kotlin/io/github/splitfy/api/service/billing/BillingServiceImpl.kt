@@ -55,20 +55,20 @@ class BillingServiceImpl(
                 null
             } else {
                 val price = platform.price
-                val monthlyServiceAmount = when (platform.billingCycle) {
+                val serviceAmount = when (platform.billingCycle) {
                     io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> price
-                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> price.divide(BigDecimal(12), INTERMEDIATE_SCALE, ROUNDING)
+                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> price
                     else -> price
                 }
 
-                val userShare = monthlyServiceAmount.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
+                val userShare = serviceAmount.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
                     .setScale(FINAL_SCALE, ROUNDING)
 
                 val item = BillingItemDto(
                     serviceId = platform.id!!,
                     serviceName = platform.name,
                     billingCycle = platform.billingCycle,
-                    serviceMonthlyAmount = monthlyServiceAmount.setScale(FINAL_SCALE, ROUNDING),
+                    serviceMonthlyAmount = serviceAmount.setScale(FINAL_SCALE, ROUNDING),
                     participantsCount = participantsCount.toInt(),
                     userMonthlyShare = userShare
                 )

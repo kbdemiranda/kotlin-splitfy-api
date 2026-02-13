@@ -9,11 +9,19 @@ import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.service.billing.BillingService
+import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.web.subscriber.dto.BillingItemDto
+import io.github.splitfy.api.web.subscriber.dto.BillingResponse
+import io.github.splitfy.api.web.subscriber.dto.Currency
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
+import io.github.splitfy.api.web.subscriber.dto.SubscriberBillingEmailRequest
 import org.mockito.kotlin.*
 import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertTrue
 import java.time.LocalDateTime
+import java.time.YearMonth
 import java.math.BigDecimal
 import java.util.Optional
 import java.util.UUID
@@ -23,8 +31,16 @@ class SubscriberServiceTest {
     private val subscriberRepository: SubscriberRepository = mock()
     private val platformRepository: PlatformRepository = mock()
     private val subscriberPlatformRepository: SubscriberPlatformRepository = mock()
+    private val billingService: BillingService = mock()
+    private val emailService: EmailService = mock()
 
-    private val service = SubscriberService(subscriberRepository, platformRepository, subscriberPlatformRepository)
+    private val service = SubscriberService(
+        subscriberRepository,
+        platformRepository,
+        subscriberPlatformRepository,
+        billingService,
+        emailService
+    )
 
     private fun sampleSubscriber(): Subscriber {
         return Subscriber(
@@ -235,5 +251,69 @@ class SubscriberServiceTest {
         assertFailsWith<BadRequestApiException> {
             service.disassociatePlatforms(1L, req)
         }
+    }
+
+    @Test
+    fun `sendBillingSummaryToEmails sends a single summary to all recipients`() {
+        val subscriber1 = sampleSubscriber()
+        val subscriber2 = sampleSubscriber().copy(id = 2L, name = "User 2", email = "u2@example.com")
+
+        whenever(subscriberRepository.findAllById(listOf(1L, 2L))).thenReturn(listOf(subscriber1, subscriber2))
+        whenever(billingService.getBillingForSubscriber(eq(1L), any())).thenReturn(
+            BillingResponse(
+                userId = 1L,
+                referenceMonth = YearMonth.of(2026, 2),
+                items = listOf(
+                    BillingItemDto(
+                        serviceId = 10L,
+                        serviceName = "Netflix",
+                        billingCycle = io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY,
+                        serviceMonthlyAmount = BigDecimal("55.90"),
+                        participantsCount = 2,
+                        userMonthlyShare = BigDecimal("27.95")
+                    )
+                ),
+                totalMonthlyDue = BigDecimal("27.95"),
+                currency = Currency.BRL
+            )
+        )
+        whenever(billingService.getBillingForSubscriber(eq(2L), any())).thenReturn(
+            BillingResponse(
+                userId = 2L,
+                referenceMonth = YearMonth.of(2026, 2),
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("0.00"),
+                currency = Currency.BRL
+            )
+        )
+
+        val request = SubscriberBillingEmailRequest(
+            subscriberIds = listOf(1L, 2L),
+            emails = listOf("finance@splitfy.com", "owner@splitfy.com")
+        )
+
+        service.sendBillingSummaryToEmails(request)
+
+        verify(emailService).send(
+            eq("finance@splitfy.com"),
+            argThat { this.contains("Resumo de cobranças Splitfy") },
+            argThat { this.contains("Subscriber: User") && this.contains("Valor total geral: R$ 27.95") }
+        )
+        verify(emailService).send(
+            eq("owner@splitfy.com"),
+            argThat { this.contains("Resumo de cobranças Splitfy") },
+            any()
+        )
+    }
+
+    @Test
+    fun `sendBillingSummaryToEmails with empty subscriber ids throws BadRequestApiException`() {
+        val request = SubscriberBillingEmailRequest(subscriberIds = emptyList(), emails = listOf("owner@splitfy.com"))
+
+        val exception = assertFailsWith<BadRequestApiException> {
+            service.sendBillingSummaryToEmails(request)
+        }
+
+        assertTrue(exception.message!!.contains("subscriberIds"))
     }
 }

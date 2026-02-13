@@ -2,6 +2,7 @@ package io.github.splitfy.api.web.subscriber
 
 import io.github.splitfy.api.service.subscriber.SubscriberService
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
+import io.github.splitfy.api.web.subscriber.dto.SubscriberBillingEmailRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -114,6 +115,20 @@ class SubscriberController (private val subscriberService: SubscriberService) {
     fun disassociate(@PathVariable id: Long, @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>): ResponseEntity<Void>{
         subscriberService.disassociatePlatforms(id, platformAssociationRequest);
         return ResponseEntity.ok().build<Void>();
+    }
+
+    @Operation(summary = "Send billing summary by e-mail", description = "Sends billing summary for one or more subscribers to one or more e-mails")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Billing summary sent"),
+            ApiResponse(responseCode = "400", description = "Invalid request"),
+            ApiResponse(responseCode = "404", description = "Subscriber not found")
+        ]
+    )
+    @PostMapping("/billing/email-summary")
+    fun sendBillingSummary(@RequestBody request: SubscriberBillingEmailRequest): ResponseEntity<Void> {
+        subscriberService.sendBillingSummaryToEmails(request)
+        return ResponseEntity.ok().build()
     }
 
 }

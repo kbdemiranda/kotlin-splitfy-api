@@ -88,8 +88,12 @@ class BillingServiceTest {
         // reference month = January (office billing month) => total should include office monthly share
         val jan = YearMonth.of(2026, 1)
         val billingJan = service.getBillingForSubscriber(1L, jan)
-        // netflix share = 10.00/2 = 5.00 ; office monthly = 120/12 = 10.00 -> share = 10/3 = 3.33 rounded -> total = 8.33
-        assertEquals(BigDecimal("8.33"), billingJan.totalMonthlyDue)
+        // netflix share = 10.00/2 = 5.00 ; office annual = 120.00 -> share = 120/3 = 40.00 -> total = 45.00
+        assertEquals(BigDecimal("45.00"), billingJan.totalMonthlyDue)
+
+        val officeItemJan = billingJan.items.first { it.serviceId == 3L }
+        assertEquals(BigDecimal("120.00"), officeItemJan.serviceMonthlyAmount)
+        assertEquals(BigDecimal("40.00"), officeItemJan.userMonthlyShare)
 
         // reference month = February => office should NOT be included
         val feb = YearMonth.of(2026, 2)
@@ -98,4 +102,3 @@ class BillingServiceTest {
         assertEquals(BigDecimal("5.00"), billingFeb.totalMonthlyDue)
     }
 }
-

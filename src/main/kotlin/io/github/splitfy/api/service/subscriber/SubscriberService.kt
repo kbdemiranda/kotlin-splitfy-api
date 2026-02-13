@@ -8,15 +8,22 @@ import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
+import io.github.splitfy.api.service.billing.BillingService
+import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.web.subscriber.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
+import io.github.splitfy.api.web.subscriber.dto.SubscriberBillingEmailRequest
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDateTime
+import java.time.YearMonth
 import java.util.UUID
 
 @Service
@@ -24,8 +31,13 @@ import java.util.UUID
 class SubscriberService(
     private val subscriberRepository: SubscriberRepository,
     private val platformRepository: PlatformRepository,
-    private val subscriberPlatformRepository: SubscriberPlatformRepository
+    private val subscriberPlatformRepository: SubscriberPlatformRepository,
+    private val billingService: BillingService,
+    private val emailService: EmailService
 ) {
+
+    private val finalScale = 2
+    private val rounding = RoundingMode.HALF_UP
 
     fun create(dto: SubscriberRequest): SubscriberResponse {
         val entity = Subscriber(
@@ -177,5 +189,85 @@ class SubscriberService(
             )
             platformRepository.save(updatedPlatform)
         }
+    }
+
+    fun sendBillingSummaryToEmails(request: SubscriberBillingEmailRequest) {
+        val subscriberIds = request.subscriberIds.distinct()
+        if (subscriberIds.isEmpty()) {
+            throw BadRequestApiException("subscriberIds must not be empty")
+        }
+
+        val emails = request.emails.map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (emails.isEmpty()) {
+            throw BadRequestApiException("emails must not be empty")
+        }
+
+        val subscribersById = subscriberRepository.findAllById(subscriberIds)
+            .associateBy { it.id }
+
+        val missingSubscriberIds = subscriberIds.filter { subscribersById[it] == null }
+        if (missingSubscriberIds.isNotEmpty()) {
+            throw ResourceNotFoundApiException("Subscribers not found with ids: ${missingSubscriberIds.joinToString(", ")}")
+        }
+
+        val deletedSubscriberIds = subscribersById.values
+            .filter { it.deletedAt != null }
+            .mapNotNull { it.id }
+        if (deletedSubscriberIds.isNotEmpty()) {
+            throw ResourceNotFoundApiException("Subscribers not found with ids: ${deletedSubscriberIds.joinToString(", ")}")
+        }
+
+        val referenceMonth = YearMonth.now()
+        val billingBySubscriber = subscriberIds.map { subscriberId ->
+            val subscriber = subscribersById[subscriberId]!!
+            Pair(subscriber, billingService.getBillingForSubscriber(subscriberId, referenceMonth))
+        }
+
+        val subject = "Resumo de cobranças Splitfy - $referenceMonth"
+        val body = buildBillingSummaryBody(billingBySubscriber, referenceMonth)
+
+        emails.forEach { email ->
+            emailService.send(email, subject, body)
+        }
+    }
+
+    private fun buildBillingSummaryBody(
+        billingBySubscriber: List<Pair<Subscriber, BillingResponse>>,
+        referenceMonth: YearMonth
+    ): String {
+        val body = StringBuilder()
+        body.appendLine("Resumo de cobrança Splitfy")
+        body.appendLine("Mês de referência: $referenceMonth")
+        body.appendLine()
+
+        var grandTotal = BigDecimal.ZERO.setScale(finalScale, rounding)
+
+        billingBySubscriber.forEach { (subscriber, billing) ->
+
+            body.appendLine("Subscriber: ${subscriber.name}")
+            if (billing.items.isEmpty()) {
+                body.appendLine("- Sem plataformas ativas")
+            } else {
+                billing.items.forEach { item ->
+                    body.appendLine("- ${item.serviceName}:")
+                    body.appendLine("  Valor total da plataforma: ${formatCurrency(item.serviceMonthlyAmount)}")
+                    body.appendLine("  Valor a pagar pelo subscriber: ${formatCurrency(item.userMonthlyShare)}")
+                }
+            }
+
+            body.appendLine("Valor total do subscriber: ${formatCurrency(billing.totalMonthlyDue)}")
+            body.appendLine()
+
+            grandTotal = grandTotal.add(billing.totalMonthlyDue).setScale(finalScale, rounding)
+        }
+
+        body.appendLine("Valor total geral: ${formatCurrency(grandTotal)}")
+        return body.toString()
+    }
+
+    private fun formatCurrency(value: BigDecimal): String {
+        return "R$ ${value.setScale(finalScale, rounding).toPlainString()}"
     }
 }
