@@ -1,8 +1,12 @@
 package io.github.splitfy.api.service.billing
 
+import io.github.splitfy.api.domain.enums.Currency as PlatformCurrency
+import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
+import io.github.splitfy.api.service.exchange.ExchangeRateQuote
+import io.github.splitfy.api.service.exchange.ExchangeRateService
 import io.github.splitfy.api.web.subscriber.dto.BillingItemDto
 import io.github.splitfy.api.web.subscriber.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.Currency
@@ -16,7 +20,8 @@ import java.time.YearMonth
 @Transactional(readOnly = true)
 class BillingServiceImpl(
     private val subscriberRepository: SubscriberRepository,
-    private val subscriberPlatformRepository: SubscriberPlatformRepository
+    private val subscriberPlatformRepository: SubscriberPlatformRepository,
+    private val exchangeRateService: ExchangeRateService
 ) : BillingService {
 
     private val FINAL_SCALE = 2
@@ -44,6 +49,7 @@ class BillingServiceImpl(
         val platformIds = associations.map { it.platform.id!! }
         val counts = subscriberPlatformRepository.countActiveParticipantsByPlatformIds(platformIds)
         val countsByPlatform = counts.associateBy { it.getPlatformId() }
+        val ratesByCurrency = loadRatesForForeignCurrencies(associations.map { it.platform.currency }.distinct())
 
         // build items plus a flag indicating if this service should be included in this month's total
         val itemsWithInclude = associations.mapNotNull { assoc ->
@@ -55,22 +61,36 @@ class BillingServiceImpl(
                 null
             } else {
                 val price = platform.price
+                val exchangeQuote = if (platform.currency == PlatformCurrency.BRL) null else ratesByCurrency[platform.currency]
+                val rateToBrl = exchangeQuote?.rateToBrl ?: BigDecimal.ONE
+                val priceInBrl = price.multiply(rateToBrl)
                 val serviceAmount = when (platform.billingCycle) {
-                    io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> price
-                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> price
-                    else -> price
-                }
+                    io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> priceInBrl
+                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> priceInBrl
+                    else -> priceInBrl
+                }.setScale(FINAL_SCALE, ROUNDING)
 
                 val userShare = serviceAmount.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
                     .setScale(FINAL_SCALE, ROUNDING)
+                val userShareOriginal = if (platform.currency == PlatformCurrency.BRL) {
+                    null
+                } else {
+                    price.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
+                        .setScale(FINAL_SCALE, ROUNDING)
+                }
 
                 val item = BillingItemDto(
                     serviceId = platform.id!!,
                     serviceName = platform.name,
                     billingCycle = platform.billingCycle,
-                    serviceMonthlyAmount = serviceAmount.setScale(FINAL_SCALE, ROUNDING),
+                    serviceCurrency = platform.currency.name,
+                    serviceMonthlyAmount = serviceAmount,
                     participantsCount = participantsCount.toInt(),
-                    userMonthlyShare = userShare
+                    userMonthlyShare = userShare,
+                    serviceMonthlyAmountOriginal = if (platform.currency == PlatformCurrency.BRL) null else price.setScale(FINAL_SCALE, ROUNDING),
+                    userMonthlyShareOriginal = userShareOriginal,
+                    exchangeRateToBrl = exchangeQuote?.rateToBrl,
+                    exchangeRateDate = exchangeQuote?.quotedAt?.toLocalDate()
                 )
 
                 // Determine whether to include this service/userShare in the totalMonthlyDue
@@ -102,5 +122,14 @@ class BillingServiceImpl(
             items = items,
             totalMonthlyDue = total
         )
+    }
+
+    private fun loadRatesForForeignCurrencies(currencies: List<PlatformCurrency>): Map<PlatformCurrency, ExchangeRateQuote> {
+        return currencies
+            .filter { it != PlatformCurrency.BRL }
+            .associateWith { currency ->
+                exchangeRateService.getLatestBrlRate(currency)
+                    ?: throw BadRequestApiException("Could not fetch BRL exchange rate for currency: ${currency.name}")
+            }
     }
 }

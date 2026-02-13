@@ -6,6 +6,7 @@ import io.github.splitfy.api.domain.enums.ServiceType
 import io.swagger.v3.oas.annotations.media.Schema
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.time.LocalDate
 import java.time.MonthDay
 
 @Schema(description = "Platform data")
@@ -21,6 +22,15 @@ data class PlatformResponse(
 
     @Schema(description = "Currency", example = "BRL")
     val currency: Currency = Currency.BRL,
+
+    @Schema(description = "Price converted to BRL using the latest available exchange rate")
+    val priceInBrl: BigDecimal? = null,
+
+    @Schema(description = "Exchange rate used to convert the original price to BRL")
+    val exchangeRateToBrl: BigDecimal? = null,
+
+    @Schema(description = "Date of the exchange rate used for conversion")
+    val exchangeRateDate: LocalDate? = null,
 
     @Schema(description = "URL", example = "https://www.netflix.com")
     val url: String? = null,

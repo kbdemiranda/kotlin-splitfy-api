@@ -7,6 +7,8 @@ import io.github.splitfy.api.domain.enums.ServiceType
 import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.service.exchange.ExchangeRateQuote
+import io.github.splitfy.api.service.exchange.ExchangeRateService
 import org.mockito.kotlin.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -20,7 +22,8 @@ import java.util.UUID
 class PlatformServiceTest {
 
     private val platformRepository: PlatformRepository = mock()
-    private val service = PlatformService(platformRepository)
+    private val exchangeRateService: ExchangeRateService = mock()
+    private val service = PlatformService(platformRepository, exchangeRateService)
 
     @Test
     fun `create saves and returns dto`() {
@@ -43,6 +46,7 @@ class PlatformServiceTest {
         assertEquals(req.name, resp.name)
         assertEquals(req.price, resp.price)
         assertEquals(req.currency, resp.currency)
+        assertEquals(null, resp.priceInBrl)
         assertNotNull(resp.createdAt)
         // verify repository save called
         verify(platformRepository).save(any())
@@ -64,6 +68,7 @@ class PlatformServiceTest {
             platformToken = UUID.fromString("00000000-0000-0000-0000-000000000001"),
             name = "Old",
             price = BigDecimal("10.00"),
+            currency = Currency.BRL,
             url = null,
             serviceType = ServiceType.STREAMING_VIDEO,
             totalSlots = 2,
@@ -97,5 +102,41 @@ class PlatformServiceTest {
         verify(platformRepository).save(captor.capture())
         assertEquals(existing.platformToken, captor.firstValue.platformToken)
         assertEquals(Currency.EUR, captor.firstValue.currency)
+    }
+
+    @Test
+    fun `findById converts foreign currency price to BRL using latest quote`() {
+        val existing = Platform(
+            id = 2L,
+            platformToken = UUID.fromString("00000000-0000-0000-0000-000000000002"),
+            name = "Foreign Service",
+            price = BigDecimal("10.00"),
+            currency = Currency.USD,
+            url = null,
+            serviceType = ServiceType.SOFTWARE,
+            totalSlots = 1,
+            availableSlots = 1,
+            createdAt = LocalDateTime.now(),
+            updatedAt = null,
+            deletedAt = null,
+            billingCycle = BillingCycle.MONTHLY,
+            billingDate = null
+        )
+        val quoteAt = LocalDateTime.of(2026, 2, 12, 13, 4, 38)
+
+        whenever(platformRepository.findById(2L)).thenReturn(Optional.of(existing))
+        whenever(exchangeRateService.getLatestBrlRate(Currency.USD)).thenReturn(
+            ExchangeRateQuote(
+                currency = Currency.USD,
+                rateToBrl = BigDecimal("5.1674"),
+                quotedAt = quoteAt
+            )
+        )
+
+        val response = service.findById(2L)!!
+
+        assertEquals(BigDecimal("51.67"), response.priceInBrl)
+        assertEquals(BigDecimal("5.1674"), response.exchangeRateToBrl)
+        assertEquals(quoteAt.toLocalDate(), response.exchangeRateDate)
     }
 }

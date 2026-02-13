@@ -4,8 +4,11 @@ import io.github.splitfy.api.domain.entity.Platform
 import io.github.splitfy.api.domain.entity.Subscriber
 import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.domain.enums.BillingCycle
+import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
+import io.github.splitfy.api.service.exchange.ExchangeRateQuote
+import io.github.splitfy.api.service.exchange.ExchangeRateService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -22,12 +25,13 @@ class BillingServiceTest {
 
     private val subscriberRepository: SubscriberRepository = mock()
     private val subscriberPlatformRepository: SubscriberPlatformRepository = mock()
+    private val exchangeRateService: ExchangeRateService = mock()
 
     private lateinit var service: BillingServiceImpl
 
     @BeforeEach
     fun setup() {
-        service = BillingServiceImpl(subscriberRepository, subscriberPlatformRepository)
+        service = BillingServiceImpl(subscriberRepository, subscriberPlatformRepository, exchangeRateService)
     }
 
     private fun sampleSubscriber(id: Long = 1L): Subscriber {
@@ -40,12 +44,20 @@ class BillingServiceTest {
         )
     }
 
-    private fun samplePlatform(id: Long, name: String, price: BigDecimal, billingCycle: BillingCycle, billingDate: MonthDay?): Platform {
+    private fun samplePlatform(
+        id: Long,
+        name: String,
+        price: BigDecimal,
+        billingCycle: BillingCycle,
+        billingDate: MonthDay?,
+        currency: Currency = Currency.BRL
+    ): Platform {
         return Platform(
             id = id,
             platformToken = UUID.randomUUID(),
             name = name,
             price = price,
+            currency = currency,
             url = null,
             serviceType = io.github.splitfy.api.domain.enums.ServiceType.SOFTWARE,
             totalSlots = 5,
@@ -100,5 +112,48 @@ class BillingServiceTest {
         val billingFeb = service.getBillingForSubscriber(1L, feb)
         // only netflix included -> 5.00
         assertEquals(BigDecimal("5.00"), billingFeb.totalMonthlyDue)
+    }
+
+    @Test
+    fun `foreign currency items are converted to BRL with latest quote`() {
+        val subscriber = sampleSubscriber(1L)
+        val notionUsd = samplePlatform(
+            id = 4L,
+            name = "Notion",
+            price = BigDecimal("10.00"),
+            billingCycle = BillingCycle.MONTHLY,
+            billingDate = null,
+            currency = Currency.USD
+        )
+        val assoc = sampleAssoc(1L, subscriber, notionUsd)
+        val quoteAt = LocalDateTime.of(2026, 2, 12, 13, 4, 38)
+
+        whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(assoc))
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(4L))).thenReturn(listOf(
+            object : SubscriberPlatformRepository.PlatformParticipantsCount {
+                override fun getPlatformId() = 4L
+                override fun getCount() = 2L
+            }
+        ))
+        whenever(exchangeRateService.getLatestBrlRate(Currency.USD)).thenReturn(
+            ExchangeRateQuote(
+                currency = Currency.USD,
+                rateToBrl = BigDecimal("5.1674"),
+                quotedAt = quoteAt
+            )
+        )
+
+        val billing = service.getBillingForSubscriber(1L, YearMonth.of(2026, 2))
+        val item = billing.items.first()
+
+        assertEquals(BigDecimal("51.67"), item.serviceMonthlyAmount)
+        assertEquals(BigDecimal("25.84"), item.userMonthlyShare)
+        assertEquals("USD", item.serviceCurrency)
+        assertEquals(BigDecimal("10.00"), item.serviceMonthlyAmountOriginal)
+        assertEquals(BigDecimal("5.00"), item.userMonthlyShareOriginal)
+        assertEquals(BigDecimal("5.1674"), item.exchangeRateToBrl)
+        assertEquals(quoteAt.toLocalDate(), item.exchangeRateDate)
+        assertEquals(BigDecimal("25.84"), billing.totalMonthlyDue)
     }
 }
