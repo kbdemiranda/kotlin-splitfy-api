@@ -2,6 +2,7 @@ package io.github.splitfy.api.domain.entity
 
 import io.github.splitfy.api.domain.converter.MonthDayAttributeConverter
 import io.github.splitfy.api.domain.enums.BillingCycle
+import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.domain.enums.ServiceType
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -34,6 +35,10 @@ data class Platform(
 
     @Column(name = "price", nullable = false)
     val price: BigDecimal,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false, length = 3, columnDefinition = "varchar(3) default 'BRL'")
+    val currency: Currency = Currency.BRL,
 
     @Column(name = "url")
     val url: String? = null,

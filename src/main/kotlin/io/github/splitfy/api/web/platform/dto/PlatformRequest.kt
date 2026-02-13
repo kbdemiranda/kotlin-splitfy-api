@@ -1,6 +1,7 @@
 package io.github.splitfy.api.web.platform.dto
 
 import io.github.splitfy.api.domain.enums.BillingCycle
+import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.domain.enums.ServiceType
 import io.swagger.v3.oas.annotations.media.Schema
 import java.math.BigDecimal
@@ -13,6 +14,9 @@ data class PlatformRequest(
 
     @Schema(description = "Price", example = "19.90")
     val price: BigDecimal,
+
+    @Schema(description = "Currency", example = "BRL", defaultValue = "BRL")
+    val currency: Currency = Currency.BRL,
 
     @Schema(description = "URL", example = "https://www.netflix.com")
     val url: String? = null,

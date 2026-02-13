@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
@@ -36,6 +37,7 @@ class SubscriberIntegrationTest {
         val p1Req = PlatformRequest(
             name = "Plat A",
             price = BigDecimal("10.00"),
+            currency = Currency.USD,
             url = "http://a",
             serviceType = io.github.splitfy.api.domain.enums.ServiceType.STREAMING_VIDEO,
             totalSlots = 5,
@@ -50,6 +52,7 @@ class SubscriberIntegrationTest {
         val createdP1Node: JsonNode = objectMapper.readTree(p1Result.response.contentAsString)
         val createdP1Id = createdP1Node.get("id").asLong()
         val createdP1AvailableSlots = createdP1Node.get("availableSlots").asInt()
+        val createdP1Currency = createdP1Node.get("currency").asText()
 
         // create platform 2
         val p2Req = PlatformRequest(
@@ -89,6 +92,7 @@ class SubscriberIntegrationTest {
         mockMvc.perform(get("/platforms/$createdP1Id"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.availableSlots").value(createdP1AvailableSlots - 1))
+            .andExpect(jsonPath("$.currency").value(createdP1Currency))
 
         mockMvc.perform(get("/platforms/$createdP2Id"))
             .andExpect(status().isOk)

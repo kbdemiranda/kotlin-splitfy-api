@@ -5,6 +5,7 @@ import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.domain.entity.Platform
 import io.github.splitfy.api.domain.enums.ServiceType
 import io.github.splitfy.api.domain.enums.BillingCycle
+import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import org.mockito.kotlin.*
 import kotlin.test.assertEquals
@@ -26,6 +27,7 @@ class PlatformServiceTest {
         val req = PlatformRequest(
             name = "Netflix",
             price = BigDecimal("29.90"),
+            currency = Currency.USD,
             url = "https://netflix.com",
             serviceType = ServiceType.STREAMING_VIDEO,
             totalSlots = 4,
@@ -40,6 +42,7 @@ class PlatformServiceTest {
 
         assertEquals(req.name, resp.name)
         assertEquals(req.price, resp.price)
+        assertEquals(req.currency, resp.currency)
         assertNotNull(resp.createdAt)
         // verify repository save called
         verify(platformRepository).save(any())
@@ -75,6 +78,7 @@ class PlatformServiceTest {
         val req = PlatformRequest(
             name = "New",
             price = BigDecimal("20.00"),
+            currency = Currency.EUR,
             url = "https://new",
             serviceType = ServiceType.STREAMING_VIDEO,
             totalSlots = 3,
@@ -92,5 +96,6 @@ class PlatformServiceTest {
         val captor = argumentCaptor<Platform>()
         verify(platformRepository).save(captor.capture())
         assertEquals(existing.platformToken, captor.firstValue.platformToken)
+        assertEquals(Currency.EUR, captor.firstValue.currency)
     }
 }
