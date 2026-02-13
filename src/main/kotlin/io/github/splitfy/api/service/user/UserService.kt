@@ -3,6 +3,9 @@ package io.github.splitfy.api.service.user
 import io.github.splitfy.api.domain.entity.User
 import io.github.splitfy.api.domain.entity.Profile
 import io.github.splitfy.api.domain.enums.ProfileName
+import io.github.splitfy.api.exception.BadRequestApiException
+import io.github.splitfy.api.exception.ConflictApiException
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.profile.ProfileService
@@ -10,7 +13,6 @@ import io.github.splitfy.api.web.user.dto.ProfileSummaryResponse
 import io.github.splitfy.api.web.user.dto.UserCreateRequest
 import io.github.splitfy.api.web.user.dto.UserResponse
 import io.github.splitfy.api.web.user.dto.UserUpdateRequest
-import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -30,7 +32,7 @@ class UserService(
 
     fun create(request: UserCreateRequest): UserResponse {
         if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(request.email)) {
-            throw IllegalArgumentException("Email already in use: ${request.email}")
+            throw ConflictApiException("Email already in use: ${request.email}")
         }
 
         val profile = resolveProfileForCreate(request)
@@ -68,7 +70,7 @@ class UserService(
         if (!nextEmail.isNullOrBlank() && nextEmail != user.email &&
             userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNullAndIdNot(nextEmail, id)
         ) {
-            throw IllegalArgumentException("Email already in use: $nextEmail")
+            throw ConflictApiException("Email already in use: $nextEmail")
         }
 
         request.name?.let { user.name = it }
@@ -103,7 +105,7 @@ class UserService(
 
     private fun getActiveUser(id: UUID): User {
         return userRepository.findByIdAndDeletedAtIsNull(id)
-            ?: throw EntityNotFoundException("User not found with id: $id")
+            ?: throw ResourceNotFoundApiException("User not found with id: $id")
     }
 
     private fun toResponse(user: User): UserResponse {
@@ -152,7 +154,7 @@ class UserService(
 
     private fun resolveProfileForCreate(request: UserCreateRequest): Profile {
         if (request.profileId != null && request.profileName != null) {
-            throw IllegalArgumentException("Provide either profileId or profileName, not both")
+            throw BadRequestApiException("Provide either profileId or profileName, not both")
         }
 
         request.profileId?.let { return profileService.getProfile(it) }
@@ -163,7 +165,7 @@ class UserService(
 
     private fun resolveProfileForUpdate(request: UserUpdateRequest): Profile? {
         if (request.profileId != null && request.profileName != null) {
-            throw IllegalArgumentException("Provide either profileId or profileName, not both")
+            throw BadRequestApiException("Provide either profileId or profileName, not both")
         }
 
         request.profileId?.let { return profileService.getProfile(it) }

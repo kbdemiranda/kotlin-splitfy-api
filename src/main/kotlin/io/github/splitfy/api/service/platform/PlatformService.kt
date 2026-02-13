@@ -1,10 +1,10 @@
 package io.github.splitfy.api.service.platform
 
 import io.github.splitfy.api.domain.entity.Platform
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.web.platform.dto.PlatformResponse
-import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -69,7 +69,7 @@ class PlatformService(private val platformRepository: PlatformRepository) {
 
     fun getPlatform(id: Long): Platform {
         return platformRepository.findById(id)
-            .orElseThrow { EntityNotFoundException("Platform not found with id: $id") }
+            .orElseThrow { ResourceNotFoundApiException("Platform not found with id: $id") }
     }
 
     private fun toDto(platform: Platform): PlatformResponse{

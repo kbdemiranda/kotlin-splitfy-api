@@ -1,11 +1,11 @@
 package io.github.splitfy.api.service.billing
 
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.web.subscriber.dto.BillingItemDto
 import io.github.splitfy.api.web.subscriber.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.Currency
-import jakarta.persistence.EntityNotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -25,7 +25,7 @@ class BillingServiceImpl(
 
     override fun getBillingForSubscriber(subscriberId: Long, referenceMonth: YearMonth?): BillingResponse {
         val subscriber = subscriberRepository.findById(subscriberId)
-            .orElseThrow { EntityNotFoundException("Subscriber not found with id: $subscriberId") }
+            .orElseThrow { ResourceNotFoundApiException("Subscriber not found with id: $subscriberId") }
 
         val refMonth = referenceMonth ?: YearMonth.now()
 

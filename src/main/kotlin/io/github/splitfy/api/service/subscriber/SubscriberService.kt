@@ -2,14 +2,15 @@ package io.github.splitfy.api.service.subscriber
 
 import io.github.splitfy.api.domain.entity.Subscriber
 import io.github.splitfy.api.domain.entity.SubscriberPlatform
+import io.github.splitfy.api.exception.BadRequestApiException
+import io.github.splitfy.api.exception.ConflictApiException
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
-import jakarta.persistence.EntityNotFoundException
-import org.apache.coyote.BadRequestException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
@@ -68,7 +69,7 @@ class SubscriberService(
 
     private fun getSubscriber(id: Long): Subscriber {
         return subscriberRepository.findById(id)
-            .orElseThrow { EntityNotFoundException("Subscriber not found with id: $id") }
+            .orElseThrow { ResourceNotFoundApiException("Subscriber not found with id: $id") }
     }
 
     private fun toDto(entity: Subscriber): SubscriberResponse {
@@ -93,14 +94,14 @@ class SubscriberService(
 
         for (platformId in platformIds) {
             val platform = platformRepository.findById(platformId)
-                .orElseThrow { EntityNotFoundException("Platform not found with id: $platformId") }
+                .orElseThrow { ResourceNotFoundApiException("Platform not found with id: $platformId") }
 
             if (platform.deletedAt != null) {
-                throw EntityNotFoundException("Platform not found with id: $platformId")
+                throw ResourceNotFoundApiException("Platform not found with id: $platformId")
             }
 
             if (platform.availableSlots <= 0) {
-                throw BadRequestException("Plataforma sem vagas disponíveis")
+                throw BadRequestApiException("Plataforma sem vagas disponíveis")
             }
 
             val existingAssociation = subscriber.id?.let {
@@ -117,7 +118,7 @@ class SubscriberService(
                     subscriberPlatformRepository.save(association)
                 }
                 existingAssociation.isActive && existingAssociation.deletedAt == null -> {
-                    throw BadRequestException("Subscriber already associated with platform id: $platformId")
+                    throw ConflictApiException("Subscriber already associated with platform id: $platformId")
                 }
                 else -> {
                     val reactivatedAssociation = existingAssociation.copy(
@@ -149,10 +150,10 @@ class SubscriberService(
 
         for (platformId in platformIds) {
             val platform = platformRepository.findById(platformId)
-                .orElseThrow { EntityNotFoundException("Platform not found with id: $platformId") }
+                .orElseThrow { ResourceNotFoundApiException("Platform not found with id: $platformId") }
 
             if (platform.deletedAt != null) {
-                throw EntityNotFoundException("Platform not found with id: $platformId")
+                throw ResourceNotFoundApiException("Platform not found with id: $platformId")
             }
 
             val association = subscriber.id?.let {
@@ -160,7 +161,7 @@ class SubscriberService(
             }
 
             if (association == null || !association.isActive || association.deletedAt != null) {
-                throw BadRequestException("Subscriber not associated with platform id: $platformId")
+                throw BadRequestApiException("Subscriber not associated with platform id: $platformId")
             }
 
             val updatedAssociation = association.copy(

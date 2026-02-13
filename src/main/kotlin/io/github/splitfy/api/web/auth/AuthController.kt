@@ -1,6 +1,7 @@
 package io.github.splitfy.api.web.auth
 
 import io.github.splitfy.api.service.auth.AuthService
+import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.web.auth.dto.LoginRequest
 import io.github.splitfy.api.web.auth.dto.LoginResponse
 import io.github.splitfy.api.web.auth.dto.LogoutResponse
@@ -27,7 +28,7 @@ class AuthController(
     @PostMapping("/logout")
     fun logout(@RequestHeader("Authorization", required = false) authorizationHeader: String?): ResponseEntity<LogoutResponse> {
         if (authorizationHeader.isNullOrBlank() || !authorizationHeader.startsWith("Bearer ")) {
-            throw IllegalArgumentException("Authorization Bearer token is required")
+            throw BadRequestApiException("Authorization Bearer token is required")
         }
 
         val token = authorizationHeader.removePrefix("Bearer ").trim()

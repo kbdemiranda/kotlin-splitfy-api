@@ -1,8 +1,8 @@
 package io.github.splitfy.api.web.error
 
+import io.github.splitfy.api.exception.ApiException
 import jakarta.persistence.EntityNotFoundException
 import jakarta.servlet.http.HttpServletRequest
-import org.apache.coyote.BadRequestException
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.DataIntegrityViolationException
@@ -21,6 +21,17 @@ import org.springframework.web.server.ResponseStatusException
 class GlobalExceptionHandler {
 
     private val log = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+
+    @ExceptionHandler(ApiException::class)
+    fun handleApiException(ex: ApiException, request: HttpServletRequest): ResponseEntity<ApiErrorResponse> {
+        return buildResponse(
+            status = ex.status,
+            code = ex.code,
+            message = ex.message ?: "Request failed",
+            request = request,
+            ex = ex
+        )
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationException(
@@ -41,7 +52,6 @@ class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(
-        BadRequestException::class,
         IllegalArgumentException::class,
         HttpMessageNotReadableException::class
     )

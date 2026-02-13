@@ -1,14 +1,13 @@
 package io.github.splitfy.api.service.auth
 
+import io.github.splitfy.api.exception.UnauthorizedApiException
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.security.JwtProperties
 import io.github.splitfy.api.security.JwtService
 import io.github.splitfy.api.security.TokenBlacklistService
 import io.github.splitfy.api.web.auth.dto.LoginRequest
 import io.github.splitfy.api.web.auth.dto.LoginResponse
-import jakarta.persistence.EntityNotFoundException
 import org.springframework.security.authentication.AuthenticationManager
-import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.DisabledException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.stereotype.Service
@@ -29,13 +28,16 @@ class AuthService(
             )
         }.onFailure {
             when (it) {
-                is DisabledException -> throw DisabledException("User is disabled")
-                else -> throw BadCredentialsException("Invalid email or password")
+                is DisabledException -> throw UnauthorizedApiException(
+                    message = "User is disabled",
+                    code = "ACCOUNT_DISABLED"
+                )
+                else -> throw UnauthorizedApiException("Invalid email or password")
             }
         }
 
         val user = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.email)
-            ?: throw EntityNotFoundException("User not found")
+            ?: throw UnauthorizedApiException("Invalid email or password")
 
         val token = jwtService.generateToken(user)
 

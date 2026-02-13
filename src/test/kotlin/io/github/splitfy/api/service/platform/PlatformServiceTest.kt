@@ -5,12 +5,12 @@ import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.domain.entity.Platform
 import io.github.splitfy.api.domain.enums.ServiceType
 import io.github.splitfy.api.domain.enums.BillingCycle
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import org.mockito.kotlin.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
-import jakarta.persistence.EntityNotFoundException
 import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.Optional
@@ -46,10 +46,10 @@ class PlatformServiceTest {
     }
 
     @Test
-    fun `getPlatform not found throws EntityNotFoundException`() {
+    fun `getPlatform not found throws ResourceNotFoundApiException`() {
         whenever(platformRepository.findById(1L)).thenReturn(Optional.empty())
 
-        assertFailsWith<EntityNotFoundException> {
+        assertFailsWith<ResourceNotFoundApiException> {
             service.getPlatform(1L)
         }
     }

@@ -2,11 +2,12 @@ package io.github.splitfy.api.service.profile
 
 import io.github.splitfy.api.domain.entity.Profile
 import io.github.splitfy.api.domain.enums.ProfileName
+import io.github.splitfy.api.exception.ConflictApiException
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.ProfileRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.web.profile.dto.ProfileRequest
 import io.github.splitfy.api.web.profile.dto.ProfileResponse
-import jakarta.persistence.EntityNotFoundException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -22,7 +23,7 @@ class ProfileService(
 
     fun create(request: ProfileRequest): ProfileResponse {
         if (profileRepository.existsByName(request.name)) {
-            throw IllegalArgumentException("Profile already exists for name: ${request.name}")
+            throw ConflictApiException("Profile already exists for name: ${request.name}")
         }
 
         val profile = profileRepository.save(Profile(name = request.name))
@@ -40,7 +41,7 @@ class ProfileService(
     fun update(id: UUID, request: ProfileRequest): ProfileResponse {
         val existing = getProfile(id)
         if (existing.name != request.name && profileRepository.existsByName(request.name)) {
-            throw IllegalArgumentException("Profile already exists for name: ${request.name}")
+            throw ConflictApiException("Profile already exists for name: ${request.name}")
         }
 
         existing.name = request.name
@@ -50,7 +51,7 @@ class ProfileService(
 
     fun delete(id: UUID) {
         if (userRepository.existsByProfileIdAndDeletedAtIsNull(id)) {
-            throw IllegalStateException("Profile is associated with active users and cannot be deleted")
+            throw ConflictApiException("Profile is associated with active users and cannot be deleted")
         }
 
         val profile = getProfile(id)
@@ -59,12 +60,12 @@ class ProfileService(
 
     fun getProfile(id: UUID): Profile {
         return profileRepository.findById(id)
-            .orElseThrow { EntityNotFoundException("Profile not found with id: $id") }
+            .orElseThrow { ResourceNotFoundApiException("Profile not found with id: $id") }
     }
 
     fun getProfileByName(name: ProfileName): Profile {
         return profileRepository.findByName(name)
-            ?: throw EntityNotFoundException("Profile not found with name: $name")
+            ?: throw ResourceNotFoundApiException("Profile not found with name: $name")
     }
 
     private fun toResponse(profile: Profile): ProfileResponse {

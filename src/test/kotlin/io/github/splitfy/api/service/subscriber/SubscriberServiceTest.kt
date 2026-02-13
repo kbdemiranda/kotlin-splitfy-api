@@ -6,6 +6,9 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.domain.entity.Subscriber
 import io.github.splitfy.api.domain.entity.Platform
 import io.github.splitfy.api.domain.entity.SubscriberPlatform
+import io.github.splitfy.api.exception.BadRequestApiException
+import io.github.splitfy.api.exception.ConflictApiException
+import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import org.mockito.kotlin.*
 import kotlin.test.assertFailsWith
@@ -14,8 +17,6 @@ import java.time.LocalDateTime
 import java.math.BigDecimal
 import java.util.Optional
 import java.util.UUID
-import org.apache.coyote.BadRequestException
-import jakarta.persistence.EntityNotFoundException
 
 class SubscriberServiceTest {
 
@@ -86,25 +87,25 @@ class SubscriberServiceTest {
 
         val req = listOf(PlatformAssociationRequest(platformIds = listOf(99L)))
 
-        assertFailsWith<EntityNotFoundException> {
+        assertFailsWith<ResourceNotFoundApiException> {
             service.associatePlatforms(1L, req)
         }
     }
 
     @Test
-    fun `associatePlatforms no available slots throws BadRequestException`() {
+    fun `associatePlatforms no available slots throws BadRequestApiException`() {
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(sampleSubscriber()))
         whenever(platformRepository.findById(2L)).thenReturn(Optional.of(samplePlatform(availableSlots = 0)))
 
         val req = listOf(PlatformAssociationRequest(platformIds = listOf(2L)))
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<BadRequestApiException> {
             service.associatePlatforms(1L, req)
         }
     }
 
     @Test
-    fun `associatePlatforms already associated throws BadRequestException`() {
+    fun `associatePlatforms already associated throws ConflictApiException`() {
         val subscriber = sampleSubscriber()
         val platform = samplePlatform()
         val association = SubscriberPlatform(
@@ -122,7 +123,7 @@ class SubscriberServiceTest {
 
         val req = listOf(PlatformAssociationRequest(platformIds = listOf(2L)))
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<ConflictApiException> {
             service.associatePlatforms(1L, req)
         }
     }
@@ -224,14 +225,14 @@ class SubscriberServiceTest {
     }
 
     @Test
-    fun `disassociatePlatforms association missing throws BadRequestException`() {
+    fun `disassociatePlatforms association missing throws BadRequestApiException`() {
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(sampleSubscriber()))
         whenever(platformRepository.findById(2L)).thenReturn(Optional.of(samplePlatform()))
         whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 2L)).thenReturn(null)
 
         val req = listOf(PlatformAssociationRequest(platformIds = listOf(2L)))
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<BadRequestApiException> {
             service.disassociatePlatforms(1L, req)
         }
     }
