@@ -46,8 +46,26 @@ splitfy:
     password: ${ADMIN_PASSWORD:}
   mail:
     from: ${MAIL_FROM}
+    retry:
+      max-attempts: ${MAIL_RETRY_MAX_ATTEMPTS:3}
+      backoff-ms: ${MAIL_RETRY_BACKOFF_MS:500}
   auth:
     reset-token-expiration-minutes: ${RESET_TOKEN_EXPIRATION_MINUTES:30}
+  exchange:
+    bcb:
+      base-url: ${BCB_BASE_URL:https://olinda.bcb.gov.br}
+      lookback-days: ${BCB_LOOKBACK_DAYS:10}
+    fallback:
+      base-url: ${EXCHANGE_FALLBACK_BASE_URL:https://api.frankfurter.app}
+    timeout:
+      connect-ms: ${EXCHANGE_TIMEOUT_CONNECT_MS:2000}
+      read-ms: ${EXCHANGE_TIMEOUT_READ_MS:3000}
+    retry:
+      max-attempts: ${EXCHANGE_RETRY_MAX_ATTEMPTS:3}
+      backoff-ms: ${EXCHANGE_RETRY_BACKOFF_MS:300}
+    cache:
+      ttl-seconds: ${EXCHANGE_CACHE_TTL_SECONDS:300}
+      max-stale-seconds: ${EXCHANGE_CACHE_MAX_STALE_SECONDS:21600}
   security:
     rate-limit:
       login-by-ip-per-minute: ${AUTH_RATE_LIMIT_LOGIN_IP_PER_MINUTE:30}

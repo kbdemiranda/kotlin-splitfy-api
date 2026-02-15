@@ -32,6 +32,16 @@ splitfy:
     password: Admin@Test123
   mail:
     from: no-reply@test.local
+    retry:
+      max-attempts: 1
+      backoff-ms: 0
+  exchange:
+    timeout:
+      connect-ms: 300
+      read-ms: 500
+    retry:
+      max-attempts: 1
+      backoff-ms: 0
 
 logging:
   level:
