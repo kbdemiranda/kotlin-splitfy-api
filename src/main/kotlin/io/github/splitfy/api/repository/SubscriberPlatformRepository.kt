@@ -39,4 +39,15 @@ interface SubscriberPlatformRepository : JpaRepository<SubscriberPlatform, Long>
         GROUP BY sp.platform.id
     """)
     fun countActiveParticipantsByPlatformIds(@Param("platformIds") platformIds: List<Long>): List<PlatformParticipantsCount>
+
+    @Query("""
+        SELECT sp FROM SubscriberPlatform sp
+        JOIN FETCH sp.subscriber s
+        JOIN FETCH sp.platform p
+        WHERE sp.isActive = true
+          AND sp.deletedAt IS NULL
+          AND s.deletedAt IS NULL
+          AND p.deletedAt IS NULL
+    """)
+    fun findAllActiveWithSubscriberAndPlatform(): List<SubscriberPlatform>
 }

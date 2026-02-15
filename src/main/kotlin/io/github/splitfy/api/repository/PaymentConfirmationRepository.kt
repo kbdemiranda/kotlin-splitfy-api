@@ -27,6 +27,18 @@ interface PaymentConfirmationRepository : JpaRepository<PaymentConfirmation, Lon
         """
         select pc
         from PaymentConfirmation pc
+        where pc.referenceMonth = :referenceMonth
+          and pc.deletedAt is null
+        """
+    )
+    fun findByReferenceMonthAndDeletedAtIsNull(
+        @Param("referenceMonth") referenceMonth: YearMonth
+    ): List<PaymentConfirmation>
+
+    @Query(
+        """
+        select pc
+        from PaymentConfirmation pc
         join fetch pc.subscriber s
         join fetch pc.platform p
         where pc.status = :status
