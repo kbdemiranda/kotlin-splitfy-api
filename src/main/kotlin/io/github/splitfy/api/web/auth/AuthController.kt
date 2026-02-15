@@ -2,9 +2,11 @@ package io.github.splitfy.api.web.auth
 
 import io.github.splitfy.api.service.auth.AuthService
 import io.github.splitfy.api.exception.BadRequestApiException
+import io.github.splitfy.api.web.auth.dto.ForgotPasswordRequest
 import io.github.splitfy.api.web.auth.dto.LoginRequest
 import io.github.splitfy.api.web.auth.dto.LoginResponse
 import io.github.splitfy.api.web.auth.dto.LogoutResponse
+import io.github.splitfy.api.web.auth.dto.SimpleMessageResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -23,6 +25,11 @@ class AuthController(
     @PostMapping("/login")
     fun login(@Valid @RequestBody request: LoginRequest): ResponseEntity<LoginResponse> {
         return ResponseEntity.ok(authService.login(request))
+    }
+
+    @PostMapping("/forgot-password")
+    fun forgotPassword(@Valid @RequestBody request: ForgotPasswordRequest): ResponseEntity<SimpleMessageResponse> {
+        return ResponseEntity.ok(authService.forgotPassword(request))
     }
 
     @PostMapping("/logout")

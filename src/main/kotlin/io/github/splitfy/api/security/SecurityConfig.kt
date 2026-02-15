@@ -57,6 +57,7 @@ class SecurityConfig(
             .authorizeHttpRequests {
                 it.requestMatchers(
                     "/auth/login",
+                    "/auth/forgot-password",
                     "/users",
                     "/docs",
                     "/docs/**",
@@ -86,6 +87,9 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.DELETE, "/platforms/**").hasRole("ADMIN")
 
                 it.requestMatchers(HttpMethod.POST, "/subscribers").hasRole("ADMIN")
+                it.requestMatchers(HttpMethod.POST, "/subscribers/payments/confirmations").hasAnyRole("ADMIN", "EDITOR", "VIEWER")
+                it.requestMatchers(HttpMethod.POST, "/subscribers/payments/confirmations/*/approve").hasRole("ADMIN")
+                it.requestMatchers(HttpMethod.GET, "/subscribers/payments/confirmations/pending").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.POST, "/subscribers/*/associate").hasAnyRole("ADMIN", "EDITOR")
                 it.requestMatchers(HttpMethod.POST, "/subscribers/billing/email-summary").hasAnyRole("ADMIN", "EDITOR")
                 it.requestMatchers(HttpMethod.PUT, "/subscribers/*").hasAnyRole("ADMIN", "EDITOR")
