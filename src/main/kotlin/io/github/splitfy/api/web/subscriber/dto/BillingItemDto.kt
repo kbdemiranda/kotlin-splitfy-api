@@ -17,5 +17,6 @@ data class BillingItemDto(
     val serviceMonthlyAmountOriginal: BigDecimal? = null,
     val userMonthlyShareOriginal: BigDecimal? = null,
     val exchangeRateToBrl: BigDecimal? = null,
-    val exchangeRateDate: LocalDate? = null
+    val exchangeRateDate: LocalDate? = null,
+    val paymentStatus: PaymentStatus = PaymentStatus.UNPAID
 )

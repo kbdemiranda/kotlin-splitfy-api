@@ -1,8 +1,11 @@
 package io.github.splitfy.api.service.billing
 
 import io.github.splitfy.api.domain.enums.Currency as PlatformCurrency
+import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus
+import io.github.splitfy.api.domain.entity.PaymentConfirmation
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.repository.PaymentConfirmationRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
@@ -10,6 +13,7 @@ import io.github.splitfy.api.service.exchange.ExchangeRateService
 import io.github.splitfy.api.web.subscriber.dto.BillingItemDto
 import io.github.splitfy.api.web.subscriber.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.Currency
+import io.github.splitfy.api.web.subscriber.dto.PaymentStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -21,6 +25,7 @@ import java.time.YearMonth
 class BillingServiceImpl(
     private val subscriberRepository: SubscriberRepository,
     private val subscriberPlatformRepository: SubscriberPlatformRepository,
+    private val paymentConfirmationRepository: PaymentConfirmationRepository,
     private val exchangeRateService: ExchangeRateService
 ) : BillingService {
 
@@ -33,6 +38,9 @@ class BillingServiceImpl(
             .orElseThrow { ResourceNotFoundApiException("Subscriber not found with id: $subscriberId") }
 
         val refMonth = referenceMonth ?: YearMonth.now()
+        val confirmationsByPlatformId = paymentConfirmationRepository
+            .findBySubscriberIdAndReferenceMonthAndDeletedAtIsNull(subscriberId, refMonth)
+            .associateBy { it.platform.id!! }
 
         // load active associations with platforms (avoid N+1)
         val associations = subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(subscriberId)
@@ -90,7 +98,8 @@ class BillingServiceImpl(
                     serviceMonthlyAmountOriginal = if (platform.currency == PlatformCurrency.BRL) null else price.setScale(FINAL_SCALE, ROUNDING),
                     userMonthlyShareOriginal = userShareOriginal,
                     exchangeRateToBrl = exchangeQuote?.rateToBrl,
-                    exchangeRateDate = exchangeQuote?.quotedAt?.toLocalDate()
+                    exchangeRateDate = exchangeQuote?.quotedAt?.toLocalDate(),
+                    paymentStatus = toPaymentStatus(confirmationsByPlatformId[platform.id])
                 )
 
                 // Determine whether to include this service/userShare in the totalMonthlyDue
@@ -131,5 +140,15 @@ class BillingServiceImpl(
                 exchangeRateService.getLatestBrlRate(currency)
                     ?: throw BadRequestApiException("Could not fetch BRL exchange rate for currency: ${currency.name}")
             }
+    }
+
+    private fun toPaymentStatus(confirmation: PaymentConfirmation?): PaymentStatus {
+        if (confirmation == null) {
+            return PaymentStatus.UNPAID
+        }
+        return when (confirmation.status) {
+            PaymentConfirmationStatus.PENDING -> PaymentStatus.PENDING
+            PaymentConfirmationStatus.CONFIRMED -> PaymentStatus.PAID
+        }
     }
 }
