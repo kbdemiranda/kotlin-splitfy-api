@@ -7,8 +7,18 @@ spring:
     password: ''
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
+    generate-ddl: false
     show-sql: false
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
   mail:
     host: localhost
     port: 2525
