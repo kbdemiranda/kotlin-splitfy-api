@@ -17,8 +17,8 @@ class AuthDataInitializer(
     private val profileRepository: ProfileRepository,
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
-    @Value("\${splitfy.admin.email:admin@splitfy.local}") private val adminEmail: String?,
-    @Value("\${splitfy.admin.password:Admin@123}") private val adminPassword: String?,
+    @Value("\${splitfy.admin.email:}") private val adminEmail: String?,
+    @Value("\${splitfy.admin.password:}") private val adminPassword: String?,
 ) : ApplicationRunner {
 
     private val logger = LoggerFactory.getLogger(AuthDataInitializer::class.java)
@@ -46,10 +46,12 @@ class AuthDataInitializer(
     }
 
     private fun ensureAdminUser(profiles: List<Profile>) {
-        val normalizedEmail = adminEmail?.lowercase()?.trim()
-            ?: throw IllegalStateException("Admin email must not be null")
-        val rawPassword = adminPassword
-            ?: throw IllegalStateException("Admin password must not be null")
+        val normalizedEmail = adminEmail?.lowercase()?.trim().orEmpty()
+        val rawPassword = adminPassword?.trim().orEmpty()
+        if (normalizedEmail.isBlank() || rawPassword.isBlank()) {
+            logger.warn("Admin bootstrap skipped: splitfy.admin.email/password not configured")
+            return
+        }
 
         val existingAdmin = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(normalizedEmail)
         if (existingAdmin != null) {

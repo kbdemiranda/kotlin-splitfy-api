@@ -58,6 +58,7 @@ class SecurityConfig(
                 it.requestMatchers(
                     "/auth/login",
                     "/auth/forgot-password",
+                    "/auth/reset-password",
                     "/users",
                     "/docs",
                     "/docs/**",

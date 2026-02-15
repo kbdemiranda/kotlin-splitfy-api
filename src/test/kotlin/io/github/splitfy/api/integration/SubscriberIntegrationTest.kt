@@ -33,6 +33,8 @@ class SubscriberIntegrationTest {
 
     @Test
     fun `associate multiple platforms flow via MockMvc`() {
+        val token = authenticateAsAdmin()
+
         // create platform 1
         val p1Req = PlatformRequest(
             name = "Plat A",
@@ -46,7 +48,12 @@ class SubscriberIntegrationTest {
             billingDay = null
         )
         val p1Json = objectMapper.writeValueAsString(p1Req)
-        val p1Result = mockMvc.perform(post("/platforms").contentType(MediaType.APPLICATION_JSON).content(p1Json))
+        val p1Result = mockMvc.perform(
+            post("/platforms")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(p1Json)
+        )
             .andExpect(status().isCreated)
             .andReturn()
         val createdP1Node: JsonNode = objectMapper.readTree(p1Result.response.contentAsString)
@@ -66,7 +73,12 @@ class SubscriberIntegrationTest {
             billingDay = null
         )
         val p2Json = objectMapper.writeValueAsString(p2Req)
-        val p2Result = mockMvc.perform(post("/platforms").contentType(MediaType.APPLICATION_JSON).content(p2Json))
+        val p2Result = mockMvc.perform(
+            post("/platforms")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(p2Json)
+        )
             .andExpect(status().isCreated)
             .andReturn()
         val createdP2Node: JsonNode = objectMapper.readTree(p2Result.response.contentAsString)
@@ -76,7 +88,12 @@ class SubscriberIntegrationTest {
         // create subscriber
         val sReq = SubscriberRequest(name = "Test User", email = "t@example.com")
         val sJson = objectMapper.writeValueAsString(sReq)
-        val sResult = mockMvc.perform(post("/subscribers").contentType(MediaType.APPLICATION_JSON).content(sJson))
+        val sResult = mockMvc.perform(
+            post("/subscribers")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(sJson)
+        )
             .andExpect(status().isOk)
             .andReturn()
         val createdSNode: JsonNode = objectMapper.readTree(sResult.response.contentAsString)
@@ -85,49 +102,90 @@ class SubscriberIntegrationTest {
         // associate both platforms
         val assocReq = listOf(PlatformAssociationRequest(platformIds = listOf(createdP1Id, createdP2Id)))
         val assocJson = objectMapper.writeValueAsString(assocReq)
-        mockMvc.perform(post("/subscribers/${createdSId}/associate").contentType(MediaType.APPLICATION_JSON).content(assocJson))
+        mockMvc.perform(
+            post("/subscribers/${createdSId}/associate")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(assocJson)
+        )
             .andExpect(status().isOk)
 
         // check platforms updated
-        mockMvc.perform(get("/platforms/$createdP1Id"))
+        mockMvc.perform(get("/platforms/$createdP1Id").header("Authorization", "Bearer $token"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.availableSlots").value(createdP1AvailableSlots - 1))
             .andExpect(jsonPath("$.currency").value(createdP1Currency))
 
-        mockMvc.perform(get("/platforms/$createdP2Id"))
+        mockMvc.perform(get("/platforms/$createdP2Id").header("Authorization", "Bearer $token"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.availableSlots").value(createdP2AvailableSlots - 1))
 
         // disassociate
         val disassocReqJson = objectMapper.writeValueAsString(listOf(PlatformAssociationRequest(platformIds = listOf(createdP1Id, createdP2Id))))
-        mockMvc.perform(put("/subscribers/${createdSId}/disassociate").contentType(MediaType.APPLICATION_JSON).content(disassocReqJson))
+        mockMvc.perform(
+            put("/subscribers/${createdSId}/disassociate")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(disassocReqJson)
+        )
             .andExpect(status().isOk)
 
-        mockMvc.perform(get("/platforms/$createdP1Id"))
+        mockMvc.perform(get("/platforms/$createdP1Id").header("Authorization", "Bearer $token"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.availableSlots").value(createdP1AvailableSlots))
 
-        mockMvc.perform(get("/platforms/$createdP2Id"))
+        mockMvc.perform(get("/platforms/$createdP2Id").header("Authorization", "Bearer $token"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.availableSlots").value(createdP2AvailableSlots))
     }
 
     @Test
     fun `associate with empty request does nothing via MockMvc`() {
+        val token = authenticateAsAdmin()
+
         val sReq = SubscriberRequest(name = "Empty Test", email = "e@example.com")
         val sJson = objectMapper.writeValueAsString(sReq)
-        val sResult = mockMvc.perform(post("/subscribers").contentType(MediaType.APPLICATION_JSON).content(sJson))
+        val sResult = mockMvc.perform(
+            post("/subscribers")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(sJson)
+        )
             .andExpect(status().isOk)
             .andReturn()
         val createdSNode: JsonNode = objectMapper.readTree(sResult.response.contentAsString)
         val createdSId = createdSNode.get("id").asLong()
 
         val emptyJson = objectMapper.writeValueAsString(emptyList<PlatformAssociationRequest>())
-        mockMvc.perform(post("/subscribers/${createdSId}/associate").contentType(MediaType.APPLICATION_JSON).content(emptyJson))
+        mockMvc.perform(
+            post("/subscribers/${createdSId}/associate")
+                .header("Authorization", "Bearer $token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(emptyJson)
+        )
             .andExpect(status().isOk)
 
-        mockMvc.perform(get("/subscribers/${createdSId}"))
+        mockMvc.perform(get("/subscribers/${createdSId}").header("Authorization", "Bearer $token"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.email").value(createdSNode.get("email").asText()))
+    }
+
+    private fun authenticateAsAdmin(): String {
+        val loginJson = """
+            {
+              "email": "admin@test.local",
+              "password": "Admin@Test123"
+            }
+        """.trimIndent()
+
+        val loginResult = mockMvc.perform(
+            post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginJson)
+        )
+            .andExpect(status().isOk)
+            .andReturn()
+
+        return objectMapper.readTree(loginResult.response.contentAsString).get("token").asText()
     }
 }

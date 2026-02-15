@@ -9,6 +9,19 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+  mail:
+    host: localhost
+    port: 2525
+
+splitfy:
+  jwt:
+    secret: test-secret-which-needs-at-least-32-bytes-123456
+    expiration-ms: 3600000
+  admin:
+    email: admin@test.local
+    password: Admin@Test123
+  mail:
+    from: no-reply@test.local
 
 logging:
   level:
