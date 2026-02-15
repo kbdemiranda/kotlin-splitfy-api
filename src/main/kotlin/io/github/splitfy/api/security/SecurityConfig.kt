@@ -60,8 +60,6 @@ class SecurityConfig(
                     "/auth/forgot-password",
                     "/auth/reset-password",
                     "/users",
-                    "/docs",
-                    "/docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/webjars/**",

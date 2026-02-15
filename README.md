@@ -51,8 +51,6 @@ src/main/kotlin/io/github/splitfy/api
 
 src/main/resources
 ├── application.yml
-├── static/docs     # RapiDoc page
-├── static/swagger-ui
 └── templates/email # HTML email templates
 ```
 
@@ -150,7 +148,6 @@ This means schema creation/migrations are not auto-managed in the current setup.
 
 When the app is running:
 
-- RapiDoc: `http://localhost:8080/docs`
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 

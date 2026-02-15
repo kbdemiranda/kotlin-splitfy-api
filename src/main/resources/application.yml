@@ -81,7 +81,3 @@ management:
   endpoint:
     health:
       show-details: always
-
-springdoc:
-  swagger-ui:
-    customCssUrl: /swagger-ui/custom.css
