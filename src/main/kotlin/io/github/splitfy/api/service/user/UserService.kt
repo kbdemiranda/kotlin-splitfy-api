@@ -137,14 +137,13 @@ class UserService(
 
     private fun sendWelcomeEmail(user: User) {
         val subject = "Bem-vindo ao Splitfy"
-        val htmlBody = emailTemplateService.render(
-            preheader = "Seu acesso ao Splitfy foi criado com sucesso",
-            heading = "Bem-vindo(a), ${user.name}!",
-            paragraphs = listOf(
-                "Seu usuario foi criado com sucesso no Splitfy.",
-                "Agora voce ja pode acessar a plataforma com o e-mail ${user.email}."
-            ),
-            footer = "Se voce nao reconhece este cadastro, entre em contato com o suporte."
+        val htmlBody = emailTemplateService.renderTemplate(
+            templateName = "email/user-welcome",
+            variables = mapOf(
+                "preheader" to "Seu acesso ao Splitfy foi criado com sucesso",
+                "name" to user.name,
+                "email" to user.email
+            )
         )
 
         emailService.sendHtml(
@@ -175,4 +174,5 @@ class UserService(
 
         return null
     }
+
 }

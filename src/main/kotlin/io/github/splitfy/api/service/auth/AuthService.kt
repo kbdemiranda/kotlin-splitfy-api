@@ -150,16 +150,14 @@ class AuthService(
         expiresAt: LocalDateTime
     ) {
         val subject = "Splitfy - redefinicao de senha"
-        val htmlBody = emailTemplateService.render(
-            preheader = "Codigo de redefinicao de senha Splitfy",
-            heading = "Ola, $name!",
-            paragraphs = listOf(
-                "Recebemos uma solicitacao de redefinicao de senha para sua conta.",
-                "Use o codigo abaixo para redefinir sua senha.",
-                "Este token expira em ${expiresAt.format(RESET_EXPIRATION_FORMATTER)}."
-            ),
-            highlight = resetToken,
-            footer = "Se voce nao solicitou, desconsidere este email."
+        val htmlBody = emailTemplateService.renderTemplate(
+            templateName = "email/reset-password",
+            variables = mapOf(
+                "preheader" to "Codigo de redefinicao de senha Splitfy",
+                "name" to name,
+                "token" to resetToken,
+                "expiresAt" to expiresAt.format(RESET_EXPIRATION_FORMATTER)
+            )
         )
 
         emailService.sendHtml(
