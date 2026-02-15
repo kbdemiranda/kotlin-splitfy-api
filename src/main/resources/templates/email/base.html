@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Splitfy</title>
+    <style>
+      @media only screen and (max-width: 620px) {
+        .shell { width: 100% !important; }
+        .content { padding: 24px !important; }
+        .heading { font-size: 24px !important; line-height: 30px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;" th:text="${preheader}">Splitfy</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" class="shell" style="width:600px;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 32px;background:linear-gradient(120deg,#0f172a,#1d4ed8);">
+                <p style="margin:0;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#bfdbfe;">Splitfy</p>
+              </td>
+            </tr>
+            <tr>
+              <td class="content" style="padding:32px;">
+                <h1 class="heading" style="margin:0 0 20px;font-size:28px;line-height:34px;color:#0f172a;" th:text="${heading}">Titulo</h1>
+
+                <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#1f2937;" th:each="paragraph : ${paragraphs}" th:text="${paragraph}">Paragrafo</p>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr th:if="${highlight != null}">
+                    <td style="padding:0 0 20px;">
+                      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;">
+                        <p style="margin:0;font-size:30px;line-height:36px;letter-spacing:3px;font-weight:700;color:#0f172a;" th:text="${highlight}">000000</p>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr th:if="${bulletItems != null and !bulletItems.isEmpty()}">
+                    <td style="padding:0 0 8px;">
+                      <ul style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:22px;">
+                        <li style="margin:0 0 10px;color:#334155;" th:each="item : ${bulletItems}" th:text="${item}">Item</li>
+                      </ul>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0;font-size:12px;line-height:18px;color:#64748b;" th:if="${footer != null}" th:text="${footer}">Rodape</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

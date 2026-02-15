@@ -17,6 +17,7 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationBatchRequest
 import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationItemRequest
 import org.junit.jupiter.api.AfterEach
@@ -48,6 +49,7 @@ class PaymentConfirmationServiceTest {
     private val paymentConfirmationRepository: PaymentConfirmationRepository = mock()
     private val userRepository: UserRepository = mock()
     private val emailService: EmailService = mock()
+    private val emailTemplateService = EmailTemplateService()
 
     private lateinit var service: PaymentConfirmationService
 
@@ -58,7 +60,8 @@ class PaymentConfirmationServiceTest {
             subscriberPlatformRepository,
             paymentConfirmationRepository,
             userRepository,
-            emailService
+            emailService,
+            emailTemplateService
         )
     }
 
@@ -101,6 +104,7 @@ class PaymentConfirmationServiceTest {
         assertEquals(3, response.size)
         response.forEach { assertEquals(PaymentConfirmationStatus.CONFIRMED, it.status) }
         verify(emailService, never()).send(any(), any(), any())
+        verify(emailService, never()).sendHtml(any(), any(), any())
     }
 
     @Test
@@ -131,7 +135,7 @@ class PaymentConfirmationServiceTest {
 
         assertEquals(1, response.size)
         assertEquals(PaymentConfirmationStatus.PENDING, response.first().status)
-        verify(emailService, times(1)).send(eq("admin@splitfy.com"), any(), any())
+        verify(emailService, times(1)).sendHtml(eq("admin@splitfy.com"), any(), any())
     }
 
     @Test

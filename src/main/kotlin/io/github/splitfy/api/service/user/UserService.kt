@@ -8,6 +8,7 @@ import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.service.profile.ProfileService
 import io.github.splitfy.api.web.user.dto.ProfileSummaryResponse
 import io.github.splitfy.api.web.user.dto.UserCreateRequest
@@ -27,6 +28,7 @@ class UserService(
     private val userRepository: UserRepository,
     private val profileService: ProfileService,
     private val emailService: EmailService,
+    private val emailTemplateService: EmailTemplateService,
     private val passwordEncoder: PasswordEncoder,
 ) {
 
@@ -135,15 +137,15 @@ class UserService(
 
     private fun sendWelcomeEmail(user: User) {
         val subject = "Bem-vindo ao Splitfy"
-        val htmlBody = """
-            <html>
-              <body>
-                <h2>Bem-vindo(a), ${user.name}!</h2>
-                <p>Seu usuário foi criado com sucesso no Splitfy.</p>
-                <p>Agora você já pode acessar a plataforma com o e-mail <strong>${user.email}</strong>.</p>
-              </body>
-            </html>
-        """.trimIndent()
+        val htmlBody = emailTemplateService.render(
+            preheader = "Seu acesso ao Splitfy foi criado com sucesso",
+            heading = "Bem-vindo(a), ${user.name}!",
+            paragraphs = listOf(
+                "Seu usuario foi criado com sucesso no Splitfy.",
+                "Agora voce ja pode acessar a plataforma com o e-mail ${user.email}."
+            ),
+            footer = "Se voce nao reconhece este cadastro, entre em contato com o suporte."
+        )
 
         emailService.sendHtml(
             to = user.email,

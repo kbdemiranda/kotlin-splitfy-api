@@ -10,6 +10,7 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.service.billing.BillingService
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.web.subscriber.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
@@ -33,7 +34,8 @@ class SubscriberService(
     private val platformRepository: PlatformRepository,
     private val subscriberPlatformRepository: SubscriberPlatformRepository,
     private val billingService: BillingService,
-    private val emailService: EmailService
+    private val emailService: EmailService,
+    private val emailTemplateService: EmailTemplateService
 ) {
 
     private val finalScale = 2
@@ -226,45 +228,41 @@ class SubscriberService(
         }
 
         val subject = "Resumo de cobranças Splitfy - $referenceMonth"
-        val body = buildBillingSummaryBody(billingBySubscriber, referenceMonth)
+        val htmlBody = buildBillingSummaryHtml(billingBySubscriber, referenceMonth)
 
         emails.forEach { email ->
-            emailService.send(email, subject, body)
+            emailService.sendHtml(email, subject, htmlBody)
         }
     }
 
-    private fun buildBillingSummaryBody(
+    private fun buildBillingSummaryHtml(
         billingBySubscriber: List<Pair<Subscriber, BillingResponse>>,
         referenceMonth: YearMonth
     ): String {
-        val body = StringBuilder()
-        body.appendLine("Resumo de cobrança Splitfy")
-        body.appendLine("Mês de referência: $referenceMonth")
-        body.appendLine()
-
         var grandTotal = BigDecimal.ZERO.setScale(finalScale, rounding)
+        val bulletItems = mutableListOf<String>()
 
         billingBySubscriber.forEach { (subscriber, billing) ->
-
-            body.appendLine("Subscriber: ${subscriber.name}")
-            if (billing.items.isEmpty()) {
-                body.appendLine("- Sem plataformas ativas")
-            } else {
-                billing.items.forEach { item ->
-                    body.appendLine("- ${item.serviceName}:")
-                    body.appendLine("  Valor total da plataforma: ${formatCurrency(item.serviceMonthlyAmount)}")
-                    body.appendLine("  Valor a pagar pelo subscriber: ${formatCurrency(item.userMonthlyShare)}")
-                }
-            }
-
-            body.appendLine("Valor total do subscriber: ${formatCurrency(billing.totalMonthlyDue)}")
-            body.appendLine()
-
             grandTotal = grandTotal.add(billing.totalMonthlyDue).setScale(finalScale, rounding)
+
+            if (billing.items.isEmpty()) {
+                bulletItems += "${subscriber.name}: sem plataformas ativas (Total ${formatCurrency(billing.totalMonthlyDue)})"
+            } else {
+                val serviceSummary = billing.items.joinToString(" | ") { item ->
+                    "${item.serviceName}: ${formatCurrency(item.userMonthlyShare)}"
+                }
+                bulletItems += "${subscriber.name}: $serviceSummary (Total ${formatCurrency(billing.totalMonthlyDue)})"
+            }
         }
 
-        body.appendLine("Valor total geral: ${formatCurrency(grandTotal)}")
-        return body.toString()
+        return emailTemplateService.render(
+            preheader = "Resumo de cobrancas do mes $referenceMonth",
+            heading = "Resumo de cobrancas Splitfy",
+            paragraphs = listOf("Mes de referencia: $referenceMonth"),
+            highlight = "Total geral: ${formatCurrency(grandTotal)}",
+            bulletItems = bulletItems,
+            footer = "Consulte o sistema para visualizar o detalhamento completo."
+        )
     }
 
     private fun formatCurrency(value: BigDecimal): String {

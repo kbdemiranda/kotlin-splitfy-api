@@ -6,6 +6,7 @@ import io.github.splitfy.api.repository.PasswordResetTokenRepository
 import io.github.splitfy.api.exception.UnauthorizedApiException
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.security.JwtProperties
 import io.github.splitfy.api.security.JwtService
 import io.github.splitfy.api.security.TokenBlacklistService
@@ -25,6 +26,7 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Service
 class AuthService(
@@ -36,6 +38,7 @@ class AuthService(
     private val jwtProperties: JwtProperties,
     private val passwordEncoder: PasswordEncoder,
     private val emailService: EmailService,
+    private val emailTemplateService: EmailTemplateService,
     @Value("\${splitfy.auth.reset-token-expiration-minutes:30}") private val resetTokenExpirationMinutes: Long,
 ) {
 
@@ -147,23 +150,26 @@ class AuthService(
         expiresAt: LocalDateTime
     ) {
         val subject = "Splitfy - redefinicao de senha"
-        val htmlBody = """
-            <html>
-              <body>
-                <h2>Ola, $name!</h2>
-                <p>Recebemos uma solicitacao de redefinicao de senha para sua conta.</p>
-                <p>Use o codigo abaixo para redefinir sua senha:</p>
-                <p><strong style="font-size: 24px; letter-spacing: 2px;">$resetToken</strong></p>
-                <p>Este token expira em: <strong>$expiresAt</strong></p>
-                <p>Se voce nao solicitou, desconsidere este email.</p>
-              </body>
-            </html>
-        """.trimIndent()
+        val htmlBody = emailTemplateService.render(
+            preheader = "Codigo de redefinicao de senha Splitfy",
+            heading = "Ola, $name!",
+            paragraphs = listOf(
+                "Recebemos uma solicitacao de redefinicao de senha para sua conta.",
+                "Use o codigo abaixo para redefinir sua senha.",
+                "Este token expira em ${expiresAt.format(RESET_EXPIRATION_FORMATTER)}."
+            ),
+            highlight = resetToken,
+            footer = "Se voce nao solicitou, desconsidere este email."
+        )
 
         emailService.sendHtml(
             to = email,
             subject = subject,
             htmlBody = htmlBody,
         )
+    }
+
+    companion object {
+        private val RESET_EXPIRATION_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
     }
 }

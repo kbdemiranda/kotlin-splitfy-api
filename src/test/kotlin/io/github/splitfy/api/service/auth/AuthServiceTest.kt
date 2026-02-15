@@ -9,6 +9,7 @@ import io.github.splitfy.api.security.JwtProperties
 import io.github.splitfy.api.security.JwtService
 import io.github.splitfy.api.security.TokenBlacklistService
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.web.auth.dto.ForgotPasswordRequest
 import io.github.splitfy.api.web.auth.dto.ResetPasswordRequest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -37,6 +38,7 @@ class AuthServiceTest {
     private val tokenBlacklistService: TokenBlacklistService = mock()
     private val passwordEncoder: PasswordEncoder = mock()
     private val emailService: EmailService = mock()
+    private val emailTemplateService = EmailTemplateService()
 
     private val service = AuthService(
         authenticationManager = authenticationManager,
@@ -47,6 +49,7 @@ class AuthServiceTest {
         jwtProperties = JwtProperties(secret = "test", expirationMs = 3600000),
         passwordEncoder = passwordEncoder,
         emailService = emailService,
+        emailTemplateService = emailTemplateService,
         resetTokenExpirationMinutes = 30,
     )
 

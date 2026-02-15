@@ -12,6 +12,7 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationBatchRequest
 import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationResponse
 import io.github.splitfy.api.web.subscriber.dto.PendingPaymentApprovalResponse
@@ -32,7 +33,8 @@ class PaymentConfirmationService(
     private val subscriberPlatformRepository: SubscriberPlatformRepository,
     private val paymentConfirmationRepository: PaymentConfirmationRepository,
     private val userRepository: UserRepository,
-    private val emailService: EmailService
+    private val emailService: EmailService,
+    private val emailTemplateService: EmailTemplateService
 ) {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'EDITOR', 'VIEWER')")
@@ -229,29 +231,30 @@ class PaymentConfirmationService(
         }
 
         val subject = "Splitfy - confirmações pendentes de pagamento ($referenceMonth)"
-        val body = buildPendingEmailBody(pendings, actorEmail, referenceMonth)
-        adminEmails.forEach { email -> emailService.send(email, subject, body) }
+        val htmlBody = buildPendingEmailHtml(pendings, actorEmail, referenceMonth)
+        adminEmails.forEach { email -> emailService.sendHtml(email, subject, htmlBody) }
     }
 
-    private fun buildPendingEmailBody(
+    private fun buildPendingEmailHtml(
         pendings: List<PaymentConfirmation>,
         actorEmail: String,
         referenceMonth: YearMonth
     ): String {
-        val lines = mutableListOf<String>()
-        lines += "Foram registradas confirmações de pagamento pendentes."
-        lines += "Mês de referência: $referenceMonth"
-        lines += "Solicitado por: $actorEmail"
-        lines += ""
-        lines += "Itens pendentes:"
-
-        pendings.forEach {
-            lines += "- Subscriber ${it.subscriber.id} (${it.subscriber.name}) | Plataforma ${it.platform.id} (${it.platform.name})"
+        val bulletItems = pendings.map {
+            "Subscriber ${it.subscriber.id} (${it.subscriber.name}) | Plataforma ${it.platform.id} (${it.platform.name})"
         }
 
-        lines += ""
-        lines += "Acesse o sistema para validar os recebimentos."
-        return lines.joinToString("\n")
+        return emailTemplateService.render(
+            preheader = "Novas confirmacoes pendentes aguardando aprovacao",
+            heading = "Confirmacoes pendentes de pagamento",
+            paragraphs = listOf(
+                "Foram registradas confirmacoes de pagamento pendentes.",
+                "Mes de referencia: $referenceMonth",
+                "Solicitado por: $actorEmail"
+            ),
+            bulletItems = bulletItems,
+            footer = "Acesse o sistema para validar os recebimentos."
+        )
     }
 
     private fun currentUserEmail(): String {

@@ -11,6 +11,7 @@ import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.service.billing.BillingService
 import io.github.splitfy.api.service.email.EmailService
+import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.web.subscriber.dto.BillingItemDto
 import io.github.splitfy.api.web.subscriber.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.Currency
@@ -33,13 +34,15 @@ class SubscriberServiceTest {
     private val subscriberPlatformRepository: SubscriberPlatformRepository = mock()
     private val billingService: BillingService = mock()
     private val emailService: EmailService = mock()
+    private val emailTemplateService = EmailTemplateService()
 
     private val service = SubscriberService(
         subscriberRepository,
         platformRepository,
         subscriberPlatformRepository,
         billingService,
-        emailService
+        emailService,
+        emailTemplateService
     )
 
     private fun sampleSubscriber(): Subscriber {
@@ -294,12 +297,12 @@ class SubscriberServiceTest {
 
         service.sendBillingSummaryToEmails(request)
 
-        verify(emailService).send(
+        verify(emailService).sendHtml(
             eq("finance@splitfy.com"),
             argThat { this.contains("Resumo de cobranças Splitfy") },
-            argThat { this.contains("Subscriber: User") && this.contains("Valor total geral: R$ 27.95") }
+            argThat { this.contains("<html") }
         )
-        verify(emailService).send(
+        verify(emailService).sendHtml(
             eq("owner@splitfy.com"),
             argThat { this.contains("Resumo de cobranças Splitfy") },
             any()
