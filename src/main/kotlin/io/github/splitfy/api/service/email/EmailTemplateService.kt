@@ -34,6 +34,12 @@ class EmailTemplateService(
         return templateEngine.process("email/base", context)
     }
 
+    fun renderTemplate(templateName: String, variables: Map<String, Any?>): String {
+        val context = Context(Locale("pt", "BR"))
+        variables.forEach { (key, value) -> context.setVariable(key, value) }
+        return templateEngine.process(templateName, context)
+    }
+
     companion object {
         private fun defaultTemplateEngine(): TemplateEngine {
             val resolver = ClassLoaderTemplateResolver().apply {

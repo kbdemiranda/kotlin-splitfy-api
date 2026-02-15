@@ -25,6 +25,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
@@ -239,33 +240,59 @@ class SubscriberService(
         billingBySubscriber: List<Pair<Subscriber, BillingResponse>>,
         referenceMonth: YearMonth
     ): String {
+        val referenceLabel = referenceMonth.format(REFERENCE_MONTH_FORMATTER)
         var grandTotal = BigDecimal.ZERO.setScale(finalScale, rounding)
-        val bulletItems = mutableListOf<String>()
-
-        billingBySubscriber.forEach { (subscriber, billing) ->
+        val subscribers = billingBySubscriber.map { (subscriber, billing) ->
             grandTotal = grandTotal.add(billing.totalMonthlyDue).setScale(finalScale, rounding)
 
-            if (billing.items.isEmpty()) {
-                bulletItems += "${subscriber.name}: sem plataformas ativas (Total ${formatCurrency(billing.totalMonthlyDue)})"
-            } else {
-                val serviceSummary = billing.items.joinToString(" | ") { item ->
-                    "${item.serviceName}: ${formatCurrency(item.userMonthlyShare)}"
+            BillingSummarySubscriber(
+                name = subscriber.name,
+                email = subscriber.email,
+                totalDue = formatCurrency(billing.totalMonthlyDue),
+                services = billing.items.map { item ->
+                    BillingSummaryService(
+                        name = item.serviceName,
+                        platformValue = formatCurrency(item.serviceMonthlyAmount),
+                        subscriberShare = formatCurrency(item.userMonthlyShare),
+                        participantsCount = item.participantsCount
+                    )
                 }
-                bulletItems += "${subscriber.name}: $serviceSummary (Total ${formatCurrency(billing.totalMonthlyDue)})"
-            }
+            )
         }
 
-        return emailTemplateService.render(
-            preheader = "Resumo de cobrancas do mes $referenceMonth",
-            heading = "Resumo de cobrancas Splitfy",
-            paragraphs = listOf("Mes de referencia: $referenceMonth"),
-            highlight = "Total geral: ${formatCurrency(grandTotal)}",
-            bulletItems = bulletItems,
-            footer = "Consulte o sistema para visualizar o detalhamento completo."
+        return emailTemplateService.renderTemplate(
+            templateName = "email/billing-summary",
+            variables = mapOf(
+                "preheader" to "Resumo de cobrancas Splitfy - $referenceLabel",
+                "referenceMonth" to referenceLabel,
+                "subscriberCount" to subscribers.size,
+                "subscribers" to subscribers,
+                "grandTotal" to formatCurrency(grandTotal),
+                "pixKey" to PIX_KEY_PLACEHOLDER
+            )
         )
     }
 
     private fun formatCurrency(value: BigDecimal): String {
         return "R$ ${value.setScale(finalScale, rounding).toPlainString()}"
+    }
+
+    private data class BillingSummarySubscriber(
+        val name: String,
+        val email: String,
+        val totalDue: String,
+        val services: List<BillingSummaryService>
+    )
+
+    private data class BillingSummaryService(
+        val name: String,
+        val platformValue: String,
+        val subscriberShare: String,
+        val participantsCount: Int
+    )
+
+    companion object {
+        private val REFERENCE_MONTH_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MM/yyyy")
+        private const val PIX_KEY_PLACEHOLDER = "email@email.com"
     }
 }
