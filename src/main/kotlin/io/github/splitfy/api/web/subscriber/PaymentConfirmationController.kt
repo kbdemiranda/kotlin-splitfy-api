@@ -25,7 +25,7 @@ class PaymentConfirmationController(
     private val paymentConfirmationService: PaymentConfirmationService
 ) {
 
-    @Operation(summary = "Register payment confirmations")
+    @Operation(summary = "Register payment confirmations", description = "Registers monthly payment confirmations sent by subscribers")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Payment confirmations registered"),
@@ -39,7 +39,7 @@ class PaymentConfirmationController(
         return ResponseEntity.ok(result)
     }
 
-    @Operation(summary = "Approve a pending payment confirmation (admin only)")
+    @Operation(summary = "Approve payment confirmation", description = "Approves a pending payment confirmation (admin only)")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Payment confirmation approved"),
@@ -47,11 +47,11 @@ class PaymentConfirmationController(
         ]
     )
     @PostMapping("/{id}/approve")
-    fun approve(@PathVariable id: Long): ResponseEntity<PaymentConfirmationResponse> {
+    fun approve(@Parameter(description = "Payment confirmation ID") @PathVariable id: Long): ResponseEntity<PaymentConfirmationResponse> {
         return ResponseEntity.ok(paymentConfirmationService.approveConfirmation(id))
     }
 
-    @Operation(summary = "List pending payment confirmations for approval (admin only)")
+    @Operation(summary = "List pending payment confirmations", description = "Lists pending payment confirmations for approval (admin only)")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Pending confirmations listed")

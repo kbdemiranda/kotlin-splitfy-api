@@ -53,7 +53,7 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @GetMapping("/{id}")
-    fun get(@PathVariable id: Long): ResponseEntity<SubscriberResponse> {
+    fun get(@Parameter(description = "Subscriber ID") @PathVariable id: Long): ResponseEntity<SubscriberResponse> {
         val subscriber = subscriberService.get(id)
         return ResponseEntity.ok(subscriber)
     }
@@ -79,7 +79,10 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @PutMapping("/{id}")
-    fun update(@PathVariable id: Long, @RequestBody subscriberIn: SubscriberRequest): ResponseEntity<SubscriberResponse> {
+    fun update(
+        @Parameter(description = "Subscriber ID") @PathVariable id: Long,
+        @RequestBody subscriberIn: SubscriberRequest
+    ): ResponseEntity<SubscriberResponse> {
         val subscriber = subscriberService.update(id, subscriberIn)
         return ResponseEntity.ok(subscriber)
     }
@@ -92,12 +95,12 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @DeleteMapping("/{id}")
-    fun delete(@PathVariable id: Long): ResponseEntity<Void> {
+    fun delete(@Parameter(description = "Subscriber ID") @PathVariable id: Long): ResponseEntity<Void> {
         subscriberService.delete(id)
         return ResponseEntity.noContent().build()
     }
 
-    @Operation(summary = "Associate Platforms")
+    @Operation(summary = "Associate platforms", description = "Associates one or more platforms with a subscriber")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Associated"),
@@ -106,13 +109,27 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         ]
     )
     @PostMapping("/{id}/associate")
-    fun associate(@PathVariable id: Long, @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>): ResponseEntity<Void>{
+    fun associate(
+        @Parameter(description = "Subscriber ID") @PathVariable id: Long,
+        @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>
+    ): ResponseEntity<Void>{
         subscriberService.associatePlatforms(id, platformAssociationRequest)
         return ResponseEntity.ok().build<Void>()
     }
 
+    @Operation(summary = "Disassociate platforms", description = "Removes one or more platform associations from a subscriber")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Disassociated"),
+            ApiResponse(responseCode = "400", description = "Invalid platform IDs"),
+            ApiResponse(responseCode = "404", description = "Not found")
+        ]
+    )
     @PutMapping("/{id}/disassociate")
-    fun disassociate(@PathVariable id: Long, @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>): ResponseEntity<Void>{
+    fun disassociate(
+        @Parameter(description = "Subscriber ID") @PathVariable id: Long,
+        @RequestBody platformAssociationRequest: List<PlatformAssociationRequest>
+    ): ResponseEntity<Void>{
         subscriberService.disassociatePlatforms(id, platformAssociationRequest);
         return ResponseEntity.ok().build<Void>();
     }

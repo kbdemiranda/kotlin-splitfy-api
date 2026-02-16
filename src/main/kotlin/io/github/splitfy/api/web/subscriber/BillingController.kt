@@ -3,8 +3,9 @@ package io.github.splitfy.api.web.subscriber
 import io.github.splitfy.api.service.billing.BillingService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -20,9 +21,17 @@ class BillingController(
     private val billingService: BillingService
 ) {
 
-    @Operation(summary = "Get billing for a subscriber for a given month")
+    @Operation(summary = "Get subscriber billing", description = "Returns billing details for a subscriber and an optional reference month")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Billing loaded"),
+            ApiResponse(responseCode = "400", description = "Invalid reference month format"),
+            ApiResponse(responseCode = "404", description = "Subscriber not found")
+        ]
+    )
     @GetMapping("/{id}/billing")
     fun getBilling(
+        @Parameter(description = "Subscriber ID")
         @PathVariable id: Long,
         @Parameter(description = "Reference month in format YYYY-MM, e.g. 2026-02")
         @RequestParam(required = false) referenceMonth: String?
@@ -32,4 +41,3 @@ class BillingController(
         return ResponseEntity.ok(billing)
     }
 }
-

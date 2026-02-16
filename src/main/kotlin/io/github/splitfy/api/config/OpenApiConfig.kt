@@ -20,14 +20,14 @@ class OpenApiConfig {
                 Info()
                     .title("Splitfy API")
                     .version("v1")
-                    .description("API para gerenciamento de assinaturas compartilhadas.")
+                    .description("API for managing shared subscriptions.")
                     .contact(
                         Contact()
                             .name("Splitfy Team")
                             .email("donotanswer.contact@gmail.com")
                     )
             )
-            .addServersItem(Server().url("/").description("Servidor atual"))
+            .addServersItem(Server().url("/").description("Current server"))
             .components(
                 Components().addSecuritySchemes(
                     securitySchemeName,

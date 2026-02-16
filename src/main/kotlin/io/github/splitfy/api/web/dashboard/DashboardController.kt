@@ -5,6 +5,8 @@ import io.github.splitfy.api.service.dashboard.DashboardService
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -20,7 +22,13 @@ class DashboardController(
     private val dashboardService: DashboardService,
 ) {
 
-    @Operation(summary = "Get billing dashboard KPIs")
+    @Operation(summary = "Get billing dashboard KPIs", description = "Returns KPI metrics for the billing dashboard")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "KPIs loaded"),
+            ApiResponse(responseCode = "400", description = "Invalid reference month format")
+        ]
+    )
     @GetMapping("/kpis")
     fun getKpis(
         @Parameter(description = "Reference month in format YYYY-MM, e.g. 2026-02")
