@@ -20,7 +20,9 @@ import io.github.splitfy.api.web.subscriber.dto.SubscriberBillingEmailRequest
 import org.mockito.kotlin.*
 import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertNotNull
 import java.time.LocalDateTime
 import java.time.YearMonth
 import java.math.BigDecimal
@@ -254,6 +256,42 @@ class SubscriberServiceTest {
         assertFailsWith<BadRequestApiException> {
             service.disassociatePlatforms(1L, req)
         }
+    }
+
+    @Test
+    fun `get returns subscriber with active subscriptions`() {
+        val subscriber = sampleSubscriber()
+        val platform = samplePlatformWithId(2L, availableSlots = 2)
+        val association = SubscriberPlatform(
+            id = 10L,
+            subscriber = subscriber,
+            platform = platform,
+            subscribedAt = LocalDateTime.now().minusDays(2),
+            isActive = true,
+            deletedAt = null
+        )
+
+        whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber))
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(association))
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L))).thenReturn(
+            listOf(
+                object : SubscriberPlatformRepository.PlatformParticipantsCount {
+                    override fun getPlatformId() = 2L
+                    override fun getCount() = 2L
+                }
+            )
+        )
+
+        val response = service.get(1L)
+        assertNotNull(response)
+        val actual = checkNotNull(response)
+
+        assertEquals(1L, actual.id)
+        assertEquals("User", actual.name)
+        assertEquals(1, actual.subscriptions.size)
+        assertEquals(2L, actual.subscriptions.first().platformId)
+        assertEquals("P2", actual.subscriptions.first().platformName)
+        assertEquals(BigDecimal("0.50"), actual.subscriptions.first().price)
     }
 
     @Test

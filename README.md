@@ -136,6 +136,40 @@ SPRING_PROFILES_ACTIVE=dev ./mvnw spring-boot:run
 
 Default server port: `8080`
 
+## Running with Docker
+
+This project includes `Dockerfile` and `docker-compose.yml` to run the API container.
+The compose setup expects an existing PostgreSQL running on host at `localhost:25432` (from inside container: `host.docker.internal:25432`).
+The compose setup runs with `SPRING_PROFILES_ACTIVE=docker`, enabling automatic schema update for local development.
+
+1. Ensure `.env` has at least:
+   - `JWT_SECRET`
+   - `JWT_EXPIRATION_MS`
+   - `MAIL_USERNAME`
+   - `MAIL_PASSWORD`
+   - `MAIL_FROM`
+2. Start containers:
+
+```bash
+docker compose up --build -d
+```
+
+3. Check logs:
+
+```bash
+docker compose logs -f api
+```
+
+4. Stop containers:
+
+```bash
+docker compose down
+```
+
+Endpoints:
+- API: `http://localhost:8080`
+- Swagger: `http://localhost:8080/swagger-ui/index.html`
+
 ## Database Notes
 
 - `spring.jpa.hibernate.ddl-auto=none`

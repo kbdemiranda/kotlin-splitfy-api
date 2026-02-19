@@ -16,6 +16,7 @@ import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.github.splitfy.api.web.subscriber.dto.SubscriberBillingEmailRequest
+import io.github.splitfy.api.web.subscriber.dto.SubscriptionItemResponse
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
@@ -59,11 +60,12 @@ class SubscriberService(
         } else {
             subscriberRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase(name, pageable)
         }
-        return subscribers.map { toDto(it) }
+        return subscribers.map { toDto(it, includeSubscriptions = false) }
     }
 
     fun get(id: Long): SubscriberResponse? {
-        return toDto(getSubscriber(id))
+        val subscriber = getSubscriber(id)
+        return toDto(subscriber, includeSubscriptions = true)
     }
 
     @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
@@ -87,7 +89,46 @@ class SubscriberService(
             .orElseThrow { ResourceNotFoundApiException("Subscriber not found with id: $id") }
     }
 
-    private fun toDto(entity: Subscriber): SubscriberResponse {
+    private fun toDto(entity: Subscriber, includeSubscriptions: Boolean = false): SubscriberResponse {
+        val subscriptions = if (includeSubscriptions) {
+            entity.id?.let { subscriberId ->
+                val associations = subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(subscriberId)
+                if (associations.isEmpty()) {
+                    emptyList()
+                } else {
+                    val platformIds = associations.mapNotNull { it.platform.id }
+                    val participantsByPlatform = subscriberPlatformRepository
+                        .countActiveParticipantsByPlatformIds(platformIds)
+                        .associate { it.getPlatformId() to it.getCount() }
+
+                    associations.map { association ->
+                        val platformId = association.platform.id
+                        val participantsCount = platformId?.let { participantsByPlatform[it] } ?: 1L
+                        val splitPrice = if (participantsCount > 0L) {
+                            association.platform.price
+                                .divide(BigDecimal(participantsCount), 10, rounding)
+                                .setScale(finalScale, rounding)
+                        } else {
+                            association.platform.price.setScale(finalScale, rounding)
+                        }
+
+                        SubscriptionItemResponse(
+                            id = association.id,
+                            platformId = platformId,
+                            platformName = association.platform.name,
+                            price = splitPrice,
+                            currency = association.platform.currency,
+                            url = association.platform.url,
+                            serviceType = association.platform.serviceType,
+                            subscribedAt = association.subscribedAt
+                        )
+                    }
+                }
+            } ?: emptyList()
+        } else {
+            emptyList()
+        }
+
         return SubscriberResponse(
             id = entity.id,
             name = entity.name,
@@ -95,6 +136,7 @@ class SubscriberService(
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
             deletedAt = entity.deletedAt,
+            subscriptions = subscriptions
         )
     }
 

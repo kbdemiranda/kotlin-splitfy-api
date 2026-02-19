@@ -45,7 +45,7 @@ class SubscriberController (private val subscriberService: SubscriberService) {
         return ResponseEntity.ok(subscribers)
     }
 
-    @Operation(summary = "Get subscriber", description = "Returns a subscriber by ID")
+    @Operation(summary = "Get subscriber", description = "Returns a subscriber by ID with active subscriptions")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Found"),

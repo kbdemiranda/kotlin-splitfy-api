@@ -22,4 +22,7 @@ data class SubscriberResponse(
 
     @Schema(description = "Deleted at")
     val deletedAt: LocalDateTime? = null,
-    )
+
+    @Schema(description = "Active subscriptions associated with subscriber (detail endpoint)")
+    val subscriptions: List<SubscriptionItemResponse> = emptyList(),
+)
