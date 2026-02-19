@@ -1,4 +1,4 @@
-package io.github.splitfy.api.web.subscriber.dto
+package io.github.splitfy.api.web.paymnets.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
 

@@ -1,4 +1,4 @@
-package io.github.splitfy.api.web.subscriber.dto
+package io.github.splitfy.api.web.billing.dto
 
 import io.github.splitfy.api.domain.enums.BillingCycle
 import java.math.BigDecimal

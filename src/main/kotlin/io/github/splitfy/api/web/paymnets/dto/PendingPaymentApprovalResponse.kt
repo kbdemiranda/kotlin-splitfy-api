@@ -1,4 +1,4 @@
-package io.github.splitfy.api.web.subscriber.dto
+package io.github.splitfy.api.web.paymnets.dto
 
 import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus

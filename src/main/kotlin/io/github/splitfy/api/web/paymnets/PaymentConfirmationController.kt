@@ -1,9 +1,9 @@
-package io.github.splitfy.api.web.subscriber
+package io.github.splitfy.api.web.paymnets
 
 import io.github.splitfy.api.service.payment.PaymentConfirmationService
-import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationBatchRequest
-import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationResponse
-import io.github.splitfy.api.web.subscriber.dto.PendingPaymentApprovalResponse
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationBatchRequest
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationResponse
+import io.github.splitfy.api.web.paymnets.dto.PendingPaymentApprovalResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/subscribers/payments/confirmations")
+@RequestMapping("/paymnets")
 @Tag(name = "Payment Confirmations", description = "Confirm and approve monthly payments")
 class PaymentConfirmationController(
     private val paymentConfirmationService: PaymentConfirmationService

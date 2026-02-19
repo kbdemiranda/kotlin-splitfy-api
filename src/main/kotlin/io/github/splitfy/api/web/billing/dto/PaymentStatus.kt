@@ -1,4 +1,4 @@
-package io.github.splitfy.api.web.subscriber.dto
+package io.github.splitfy.api.web.billing.dto
 
 enum class PaymentStatus {
     UNPAID,

@@ -13,11 +13,11 @@ import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.email.EmailTemplateService
-import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationBatchRequest
-import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationResponse
-import io.github.splitfy.api.web.subscriber.dto.PendingPaymentApprovalResponse
-import io.github.splitfy.api.web.subscriber.dto.PendingPaymentPlatform
-import io.github.splitfy.api.web.subscriber.dto.PendingPaymentSubscriber
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationBatchRequest
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationResponse
+import io.github.splitfy.api.web.paymnets.dto.PendingPaymentApprovalResponse
+import io.github.splitfy.api.web.paymnets.dto.PendingPaymentPlatform
+import io.github.splitfy.api.web.paymnets.dto.PendingPaymentSubscriber
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.context.SecurityContextHolder

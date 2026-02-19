@@ -18,8 +18,8 @@ import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.email.EmailTemplateService
-import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationBatchRequest
-import io.github.splitfy.api.web.subscriber.dto.PaymentConfirmationItemRequest
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationBatchRequest
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationItemRequest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows

@@ -12,7 +12,7 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
-import io.github.splitfy.api.web.subscriber.dto.PaymentStatus
+import io.github.splitfy.api.web.billing.dto.PaymentStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

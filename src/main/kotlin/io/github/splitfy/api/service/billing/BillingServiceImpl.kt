@@ -10,10 +10,10 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
-import io.github.splitfy.api.web.subscriber.dto.BillingItemDto
-import io.github.splitfy.api.web.subscriber.dto.BillingResponse
-import io.github.splitfy.api.web.subscriber.dto.Currency
-import io.github.splitfy.api.web.subscriber.dto.PaymentStatus
+import io.github.splitfy.api.web.billing.dto.BillingItemDto
+import io.github.splitfy.api.web.billing.dto.BillingResponse
+import io.github.splitfy.api.web.billing.dto.Currency
+import io.github.splitfy.api.web.billing.dto.PaymentStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal

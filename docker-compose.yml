@@ -1,0 +1,20 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: splitfy-api
+    environment:
+      DB_URL: jdbc:postgresql://host.docker.internal:25432/splitfy
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@splitfy.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@Test123}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM:-Splitfy <no-reply@splitfy.local>}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

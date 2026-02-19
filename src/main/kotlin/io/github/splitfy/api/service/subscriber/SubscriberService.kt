@@ -11,11 +11,11 @@ import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.service.billing.BillingService
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.email.EmailTemplateService
-import io.github.splitfy.api.web.subscriber.dto.BillingResponse
+import io.github.splitfy.api.web.billing.dto.BillingResponse
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
-import io.github.splitfy.api.web.subscriber.dto.SubscriberBillingEmailRequest
+import io.github.splitfy.api.web.billing.dto.SubscriberBillingEmailRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriptionItemResponse
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
