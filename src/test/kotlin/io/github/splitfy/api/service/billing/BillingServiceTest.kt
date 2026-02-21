@@ -45,7 +45,7 @@ class BillingServiceTest {
         )
     }
 
-    private fun sampleSubscriber(id: Long = 1L): Subscriber {
+    private fun sampleSubscriber(id: Long): Subscriber {
         return Subscriber(
             id = id,
             subscriberToken = UUID.randomUUID(),

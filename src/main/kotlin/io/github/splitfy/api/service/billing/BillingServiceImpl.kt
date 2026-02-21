@@ -85,8 +85,8 @@ class BillingServiceImpl(
                 val rateToBrl = exchangeQuote?.rateToBrl ?: BigDecimal.ONE
                 val priceInBrl = price.multiply(rateToBrl)
                 val serviceAmount = when (platform.billingCycle) {
-                    io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> priceInBrl
-                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> priceInBrl
+                    BillingCycle.MONTHLY -> priceInBrl
+                    BillingCycle.ANNUAL -> priceInBrl
                     else -> priceInBrl
                 }.setScale(FINAL_SCALE, ROUNDING)
 
