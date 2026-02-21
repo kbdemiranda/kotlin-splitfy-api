@@ -108,8 +108,7 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.DELETE, "/platforms/**").hasRole("ADMIN")
 
                 it.requestMatchers(HttpMethod.POST, "/subscribers").hasRole("ADMIN")
-                it.requestMatchers(HttpMethod.POST, "/paymnets").hasAnyRole("ADMIN", "EDITOR", "VIEWER")
-                it.requestMatchers(HttpMethod.POST, "/paymnets/*/approve").hasRole("ADMIN")
+                it.requestMatchers(HttpMethod.POST, "/paymnets/subscribers/*").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.GET, "/paymnets/pending").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.POST, "/subscribers/*/associate").hasAnyRole("ADMIN", "EDITOR")
                 it.requestMatchers(HttpMethod.POST, "/billing/email-summary").hasAnyRole("ADMIN", "EDITOR")

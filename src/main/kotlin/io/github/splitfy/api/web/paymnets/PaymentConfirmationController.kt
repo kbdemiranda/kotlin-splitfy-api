@@ -1,7 +1,7 @@
 package io.github.splitfy.api.web.paymnets
 
 import io.github.splitfy.api.service.payment.PaymentConfirmationService
-import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationBatchRequest
+import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationPlatformsRequest
 import io.github.splitfy.api.web.paymnets.dto.PaymentConfirmationResponse
 import io.github.splitfy.api.web.paymnets.dto.PendingPaymentApprovalResponse
 import io.swagger.v3.oas.annotations.Operation
@@ -25,7 +25,7 @@ class PaymentConfirmationController(
     private val paymentConfirmationService: PaymentConfirmationService
 ) {
 
-    @Operation(summary = "Register payment confirmations", description = "Registers monthly payment confirmations sent by subscribers")
+    @Operation(summary = "Register payment confirmations", description = "Registers monthly payment confirmations for a subscriber (admin only)")
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Payment confirmations registered"),
@@ -33,22 +33,13 @@ class PaymentConfirmationController(
             ApiResponse(responseCode = "403", description = "Forbidden")
         ]
     )
-    @PostMapping
-    fun confirmPayments(@RequestBody request: PaymentConfirmationBatchRequest): ResponseEntity<List<PaymentConfirmationResponse>> {
-        val result = paymentConfirmationService.createConfirmations(request)
+    @PostMapping("/subscribers/{subscriberId}")
+    fun confirmPayments(
+        @Parameter(description = "Subscriber id") @PathVariable subscriberId: Long,
+        @RequestBody request: PaymentConfirmationPlatformsRequest
+    ): ResponseEntity<List<PaymentConfirmationResponse>> {
+        val result = paymentConfirmationService.createAdminConfirmations(subscriberId, request)
         return ResponseEntity.ok(result)
-    }
-
-    @Operation(summary = "Approve payment confirmation", description = "Approves a pending payment confirmation (admin only)")
-    @ApiResponses(
-        value = [
-            ApiResponse(responseCode = "200", description = "Payment confirmation approved"),
-            ApiResponse(responseCode = "404", description = "Payment confirmation not found")
-        ]
-    )
-    @PostMapping("/{id}/approve")
-    fun approve(@Parameter(description = "Payment confirmation ID") @PathVariable id: Long): ResponseEntity<PaymentConfirmationResponse> {
-        return ResponseEntity.ok(paymentConfirmationService.approveConfirmation(id))
     }
 
     @Operation(summary = "List pending payment confirmations", description = "Lists pending payment confirmations for approval (admin only)")
