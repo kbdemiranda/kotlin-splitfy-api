@@ -117,6 +117,12 @@ class SubscriberIntegrationTest {
             .andExpect(jsonPath("$.subscriptions[0].platformId").isNumber)
             .andExpect(jsonPath("$.subscriptions[0].platformName").isString)
 
+        mockMvc.perform(get("/subscribers/${createdSId}/subscriptions").header("Authorization", "Bearer $token"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].platformId").isNumber)
+            .andExpect(jsonPath("$[0].platformName").isString)
+
         // check platforms updated
         mockMvc.perform(get("/platforms/$createdP1Id").header("Authorization", "Bearer $token"))
             .andExpect(status().isOk)

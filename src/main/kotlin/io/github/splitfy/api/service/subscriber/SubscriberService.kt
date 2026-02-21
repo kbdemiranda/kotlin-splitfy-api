@@ -68,6 +68,11 @@ class SubscriberService(
         return toDto(subscriber, includeSubscriptions = true)
     }
 
+    fun getSubscriptions(id: Long): List<SubscriptionItemResponse> {
+        val subscriber = getSubscriber(id)
+        return toDto(subscriber, includeSubscriptions = true).subscriptions
+    }
+
     @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
     fun update(id: Long, dto: SubscriberRequest): SubscriberResponse? {
         val updated = getSubscriber(id).copy(

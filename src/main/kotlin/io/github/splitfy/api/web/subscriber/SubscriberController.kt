@@ -4,6 +4,7 @@ import io.github.splitfy.api.service.subscriber.SubscriberService
 import io.github.splitfy.api.web.subscriber.dto.PlatformAssociationRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
+import io.github.splitfy.api.web.subscriber.dto.SubscriptionItemResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -55,6 +56,19 @@ class SubscriberController (private val subscriberService: SubscriberService) {
     fun get(@Parameter(description = "Subscriber ID") @PathVariable id: Long): ResponseEntity<SubscriberResponse> {
         val subscriber = subscriberService.get(id)
         return ResponseEntity.ok(subscriber)
+    }
+
+    @Operation(summary = "Get subscriber subscriptions", description = "Returns active subscriptions for a subscriber")
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Found"),
+            ApiResponse(responseCode = "404", description = "Not found")
+        ]
+    )
+    @GetMapping("/{id}/subscriptions")
+    fun getSubscriptions(@Parameter(description = "Subscriber ID") @PathVariable id: Long): ResponseEntity<List<SubscriptionItemResponse>> {
+        val subscriptions = subscriberService.getSubscriptions(id)
+        return ResponseEntity.ok(subscriptions)
     }
 
     @Operation(summary = "Create subscriber", description = "Creates a new subscriber")
