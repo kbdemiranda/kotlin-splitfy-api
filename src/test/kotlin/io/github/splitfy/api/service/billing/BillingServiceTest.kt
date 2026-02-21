@@ -14,6 +14,7 @@ import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
 import io.github.splitfy.api.web.billing.dto.PaymentStatus
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
@@ -123,6 +124,7 @@ class BillingServiceTest {
         val billingFeb = service.getBillingForSubscriber(1L, feb)
         // only netflix included -> 5.00
         assertEquals(BigDecimal("5.00"), billingFeb.totalMonthlyDue)
+        assertFalse(billingFeb.items.any { it.serviceId == 3L })
     }
 
     @Test

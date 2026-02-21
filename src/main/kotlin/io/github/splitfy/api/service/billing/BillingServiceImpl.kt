@@ -1,6 +1,7 @@
 package io.github.splitfy.api.service.billing
 
 import io.github.splitfy.api.domain.enums.Currency as PlatformCurrency
+import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus
 import io.github.splitfy.api.domain.entity.PaymentConfirmation
 import io.github.splitfy.api.exception.BadRequestApiException
@@ -61,7 +62,7 @@ class BillingServiceImpl(
         val countsByPlatform = counts.associateBy { it.getPlatformId() }
         val ratesByCurrency = loadRatesForForeignCurrencies(associations.map { it.platform.currency }.distinct())
 
-        // build items plus a flag indicating if this service should be included in this month's total
+        // build only items that should be shown for the reference month
         val itemsWithInclude = associations.mapNotNull { assoc ->
             val platform = assoc.platform
             val participantsCount = countsByPlatform[platform.id!!]?.getCount() ?: 0L
@@ -70,6 +71,15 @@ class BillingServiceImpl(
                 // skip from items/results per requirement
                 null
             } else {
+                val includeInMonth = shouldIncludeInMonth(
+                    cycle = platform.billingCycle,
+                    billingMonth = platform.billingDate?.monthValue,
+                    referenceMonth = refMonth.monthValue
+                )
+                if (!includeInMonth) {
+                    return@mapNotNull null
+                }
+
                 val price = platform.price
                 val exchangeQuote = if (platform.currency == PlatformCurrency.BRL) null else ratesByCurrency[platform.currency]
                 val rateToBrl = exchangeQuote?.rateToBrl ?: BigDecimal.ONE
@@ -104,18 +114,7 @@ class BillingServiceImpl(
                     paymentStatus = toPaymentStatus(confirmationsByPlatformId[platform.id])
                 )
 
-                // Determine whether to include this service/userShare in the totalMonthlyDue
-                val includeInTotal = when (platform.billingCycle) {
-                    io.github.splitfy.api.domain.enums.BillingCycle.MONTHLY -> true
-                    io.github.splitfy.api.domain.enums.BillingCycle.ANNUAL -> {
-                        // include only if reference month matches platform billing month
-                        val billingDate = platform.billingDate
-                        billingDate != null && billingDate.monthValue == refMonth.monthValue
-                    }
-                    else -> false
-                }
-
-                Pair(item, includeInTotal)
+                Pair(item, true)
             }
         }
 
@@ -153,6 +152,14 @@ class BillingServiceImpl(
         return when (confirmation.status) {
             PaymentConfirmationStatus.PENDING -> PaymentStatus.PENDING
             PaymentConfirmationStatus.CONFIRMED -> PaymentStatus.PAID
+        }
+    }
+
+    private fun shouldIncludeInMonth(cycle: BillingCycle, billingMonth: Int?, referenceMonth: Int): Boolean {
+        return when (cycle) {
+            BillingCycle.MONTHLY -> true
+            BillingCycle.SEMI_ANNUAL -> false
+            BillingCycle.ANNUAL -> billingMonth != null && billingMonth == referenceMonth
         }
     }
 }
