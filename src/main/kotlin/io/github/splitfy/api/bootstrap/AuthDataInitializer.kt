@@ -17,8 +17,8 @@ class AuthDataInitializer(
     private val profileRepository: ProfileRepository,
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
-    @Value("\${splitfy.admin.email:}") private val adminEmail: String?,
-    @Value("\${splitfy.admin.password:}") private val adminPassword: String?,
+    @Value("\${splitfy.admin.email}") private val adminEmail: String?,
+    @Value("\${splitfy.admin.password}") private val adminPassword: String?,
 ) : ApplicationRunner {
 
     private val logger = LoggerFactory.getLogger(AuthDataInitializer::class.java)

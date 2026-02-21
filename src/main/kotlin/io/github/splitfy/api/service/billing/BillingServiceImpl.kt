@@ -47,6 +47,8 @@ class BillingServiceImpl(
         if (associations.isEmpty()) {
             return BillingResponse(
                 userId = subscriberId,
+                name = subscriber.name,
+                email = subscriber.email,
                 referenceMonth = refMonth,
                 currency = Currency.BRL,
                 items = emptyList<BillingItemDto>(),
@@ -126,6 +128,8 @@ class BillingServiceImpl(
 
         return BillingResponse(
             userId = subscriberId,
+            name = subscriber.name,
+            email = subscriber.email,
             referenceMonth = refMonth,
             currency = Currency.BRL,
             items = items,

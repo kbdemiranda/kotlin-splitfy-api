@@ -291,7 +291,6 @@ class SubscriberServiceTest {
         assertEquals(1, actual.subscriptions.size)
         assertEquals(2L, actual.subscriptions.first().platformId)
         assertEquals("P2", actual.subscriptions.first().platformName)
-        assertEquals(BigDecimal("0.50"), actual.subscriptions.first().price)
     }
 
     @Test
@@ -303,6 +302,8 @@ class SubscriberServiceTest {
         whenever(billingService.getBillingForSubscriber(eq(1L), any())).thenReturn(
             BillingResponse(
                 userId = 1L,
+                name = subscriber1.name,
+                email = subscriber1.email,
                 referenceMonth = YearMonth.of(2026, 2),
                 items = listOf(
                     BillingItemDto(
@@ -321,6 +322,8 @@ class SubscriberServiceTest {
         whenever(billingService.getBillingForSubscriber(eq(2L), any())).thenReturn(
             BillingResponse(
                 userId = 2L,
+                name = subscriber2.name,
+                email = subscriber2.email,
                 referenceMonth = YearMonth.of(2026, 2),
                 items = emptyList(),
                 totalMonthlyDue = BigDecimal("0.00"),
@@ -356,5 +359,49 @@ class SubscriberServiceTest {
         }
 
         assertTrue(exception.message!!.contains("subscriberIds"))
+    }
+
+    @Test
+    fun `sendBillingSummaryToEmails uses provided reference month`() {
+        val subscriber = sampleSubscriber()
+        val requestedMonth = YearMonth.of(2025, 12)
+
+        whenever(subscriberRepository.findAllById(listOf(1L))).thenReturn(listOf(subscriber))
+        whenever(billingService.getBillingForSubscriber(eq(1L), eq(requestedMonth))).thenReturn(
+            BillingResponse(
+                userId = 1L,
+                name = subscriber.name,
+                email = subscriber.email,
+                referenceMonth = requestedMonth,
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("0.00"),
+                currency = Currency.BRL
+            )
+        )
+
+        val request = SubscriberBillingEmailRequest(
+            subscriberIds = listOf(1L),
+            emails = listOf("finance@splitfy.com"),
+            referenceMonth = "2025-12"
+        )
+
+        service.sendBillingSummaryToEmails(request)
+
+        verify(billingService).getBillingForSubscriber(1L, requestedMonth)
+    }
+
+    @Test
+    fun `sendBillingSummaryToEmails with invalid reference month throws BadRequestApiException`() {
+        val request = SubscriberBillingEmailRequest(
+            subscriberIds = listOf(1L),
+            emails = listOf("owner@splitfy.com"),
+            referenceMonth = "12-2025"
+        )
+
+        val exception = assertFailsWith<BadRequestApiException> {
+            service.sendBillingSummaryToEmails(request)
+        }
+
+        assertTrue(exception.message!!.contains("Invalid referenceMonth"))
     }
 }

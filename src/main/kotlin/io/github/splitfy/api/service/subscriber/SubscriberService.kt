@@ -113,14 +113,9 @@ class SubscriberService(
                         }
 
                         SubscriptionItemResponse(
-                            id = association.id,
                             platformId = platformId,
                             platformName = association.platform.name,
-                            price = splitPrice,
-                            currency = association.platform.currency,
-                            url = association.platform.url,
                             serviceType = association.platform.serviceType,
-                            subscribedAt = association.subscribedAt
                         )
                     }
                 }
@@ -249,6 +244,8 @@ class SubscriberService(
             throw BadRequestApiException("emails must not be empty")
         }
 
+        val referenceMonth = parseReferenceMonthOrNow(request.referenceMonth)
+
         val subscribersById = subscriberRepository.findAllById(subscriberIds)
             .associateBy { it.id }
 
@@ -264,7 +261,6 @@ class SubscriberService(
             throw ResourceNotFoundApiException("Subscribers not found with ids: ${deletedSubscriberIds.joinToString(", ")}")
         }
 
-        val referenceMonth = YearMonth.now()
         val billingBySubscriber = subscriberIds.map { subscriberId ->
             val subscriber = subscribersById[subscriberId]!!
             Pair(subscriber, billingService.getBillingForSubscriber(subscriberId, referenceMonth))
@@ -276,6 +272,15 @@ class SubscriberService(
         emails.forEach { email ->
             emailService.sendHtml(email, subject, htmlBody)
         }
+    }
+
+    private fun parseReferenceMonthOrNow(referenceMonth: String?): YearMonth {
+        if (referenceMonth.isNullOrBlank()) {
+            return YearMonth.now()
+        }
+
+        return runCatching { YearMonth.parse(referenceMonth.trim()) }
+            .getOrElse { throw BadRequestApiException("Invalid referenceMonth. Expected format: YYYY-MM") }
     }
 
     private fun buildBillingSummaryHtml(

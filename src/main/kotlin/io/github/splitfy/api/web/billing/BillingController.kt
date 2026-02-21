@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.YearMonth
 
 @RestController
-@RequestMapping("/billing")
+@RequestMapping("/billing", "/subscribers/billing")
 @Tag(name = "Subscriber Billing", description = "Billing operations for subscribers")
 class BillingController(
     private val billingService: BillingService,

@@ -32,9 +32,9 @@ class DataInitializer(
 
     @Transactional
     override fun run(args: ApplicationArguments) {
-        val platforms = initPlatform()
-        val subscribers = initSubscriber()
-        initRandomAssociations(subscribers, platforms)
+//        val platforms = initPlatform()
+//        val subscribers = initSubscriber()
+//        initRandomAssociations(subscribers, platforms)
     }
 
     private fun initSubscriber(): List<Subscriber> {

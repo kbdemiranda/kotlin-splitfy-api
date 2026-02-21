@@ -8,6 +8,10 @@ import java.time.YearMonth
 data class BillingResponse(
     @Schema(description = "Subscriber ID", example = "1")
     val userId: Long,
+    @Schema(description = "Subscriber name", example = "")
+    val name: String,
+    @Schema(description = "Subscriber email", example = "")
+    val email: String,
     @Schema(description = "Reference month", example = "2026-02")
     val referenceMonth: YearMonth,
     @Schema(description = "Billing items for each platform")
