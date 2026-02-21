@@ -22,4 +22,6 @@ data class DashboardKpiResponse(
     val delinquencyRate: BigDecimal,
     @Schema(description = "Pending amount grouped by platform")
     val pendingByPlatform: List<PendingByPlatformItem>,
+    @Schema(description = "Subscribers that still have debt in the reference month")
+    val debtors: List<DebtorSubscriberItem>,
 )

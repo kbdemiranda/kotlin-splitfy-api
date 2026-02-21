@@ -133,6 +133,19 @@ class DashboardServiceTest {
         assertEquals(BigDecimal("25.84"), response.pendingByPlatform[0].pendingAmount)
         assertEquals(10L, response.pendingByPlatform[1].platformId)
         assertEquals(BigDecimal("5.00"), response.pendingByPlatform[1].pendingAmount)
+        assertEquals(3, response.debtors.size)
+        assertEquals(3L, response.debtors[0].subscriberId)
+        assertEquals(BigDecimal("0.00"), response.debtors[0].pendingAmount)
+        assertEquals(BigDecimal("40.00"), response.debtors[0].unpaidAmount)
+        assertEquals(BigDecimal("40.00"), response.debtors[0].totalDebt)
+        assertEquals(4L, response.debtors[1].subscriberId)
+        assertEquals(BigDecimal("25.84"), response.debtors[1].pendingAmount)
+        assertEquals(BigDecimal("0.00"), response.debtors[1].unpaidAmount)
+        assertEquals(BigDecimal("25.84"), response.debtors[1].totalDebt)
+        assertEquals(2L, response.debtors[2].subscriberId)
+        assertEquals(BigDecimal("5.00"), response.debtors[2].pendingAmount)
+        assertEquals(BigDecimal("0.00"), response.debtors[2].unpaidAmount)
+        assertEquals(BigDecimal("5.00"), response.debtors[2].totalDebt)
     }
 
     @Test
@@ -147,6 +160,7 @@ class DashboardServiceTest {
         assertEquals(BigDecimal("0.00"), response.totalUnpaid)
         assertEquals(BigDecimal("0.00"), response.delinquencyRate)
         assertEquals(0, response.pendingByPlatform.size)
+        assertEquals(0, response.debtors.size)
     }
 
     private fun subscriber(id: Long, email: String): Subscriber {

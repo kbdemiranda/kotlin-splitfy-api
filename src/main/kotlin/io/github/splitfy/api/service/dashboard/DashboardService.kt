@@ -9,6 +9,7 @@ import io.github.splitfy.api.repository.PaymentConfirmationRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
+import io.github.splitfy.api.web.dashboard.dto.DebtorSubscriberItem
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
 import io.github.splitfy.api.web.dashboard.dto.PendingByPlatformItem
 import org.springframework.stereotype.Service
@@ -75,6 +76,9 @@ class DashboardService(
                 .setScale(finalScale, rounding)
 
             dueShares[AssociationKey(subscriberId, platformId)] = DueShare(
+                subscriberId = subscriberId,
+                subscriberName = association.subscriber.name,
+                subscriberEmail = association.subscriber.email,
                 platformId = platformId,
                 platformName = platform.name,
                 userShare = userShare
@@ -93,6 +97,7 @@ class DashboardService(
         var totalPaid = BigDecimal.ZERO
         var totalPending = BigDecimal.ZERO
         val pendingByPlatformAccumulator = mutableMapOf<Long, PendingAccumulator>()
+        val debtorsAccumulator = mutableMapOf<Long, DebtorAccumulator>()
 
         dueShares.forEach { (key, dueShare) ->
             totalDue = totalDue.add(dueShare.userShare)
@@ -102,6 +107,12 @@ class DashboardService(
                 }
                 PaymentConfirmationStatus.PENDING -> {
                     totalPending = totalPending.add(dueShare.userShare)
+                    accumulateDebtor(
+                        debtorsAccumulator = debtorsAccumulator,
+                        dueShare = dueShare,
+                        pendingIncrement = dueShare.userShare,
+                        unpaidIncrement = BigDecimal.ZERO
+                    )
                     val current = pendingByPlatformAccumulator[dueShare.platformId]
                     if (current == null) {
                         pendingByPlatformAccumulator[dueShare.platformId] = PendingAccumulator(
@@ -114,7 +125,14 @@ class DashboardService(
                         current.amount = current.amount.add(dueShare.userShare)
                     }
                 }
-                else -> Unit
+                else -> {
+                    accumulateDebtor(
+                        debtorsAccumulator = debtorsAccumulator,
+                        dueShare = dueShare,
+                        pendingIncrement = BigDecimal.ZERO,
+                        unpaidIncrement = dueShare.userShare
+                    )
+                }
             }
         }
 
@@ -146,6 +164,24 @@ class DashboardService(
             }
             .sortedByDescending { it.pendingAmount }
 
+        val debtors = debtorsAccumulator.values
+            .map { acc ->
+                val pendingAmount = acc.pendingAmount.setScale(finalScale, rounding)
+                val unpaidAmount = acc.unpaidAmount.setScale(finalScale, rounding)
+                DebtorSubscriberItem(
+                    subscriberId = acc.subscriberId,
+                    subscriberName = acc.subscriberName,
+                    subscriberEmail = acc.subscriberEmail,
+                    pendingAmount = pendingAmount,
+                    unpaidAmount = unpaidAmount,
+                    totalDebt = pendingAmount.add(unpaidAmount).setScale(finalScale, rounding)
+                )
+            }
+            .sortedWith(
+                compareByDescending<DebtorSubscriberItem> { it.totalDebt }
+                    .thenBy { it.subscriberName }
+            )
+
         return DashboardKpiResponse(
             referenceMonth = refMonth,
             currency = Currency.BRL.name,
@@ -155,6 +191,7 @@ class DashboardService(
             totalUnpaid = totalUnpaid,
             delinquencyRate = delinquencyRate,
             pendingByPlatform = pendingByPlatform,
+            debtors = debtors,
         )
     }
 
@@ -196,7 +233,29 @@ class DashboardService(
             totalUnpaid = zero,
             delinquencyRate = zero,
             pendingByPlatform = emptyList(),
+            debtors = emptyList(),
         )
+    }
+
+    private fun accumulateDebtor(
+        debtorsAccumulator: MutableMap<Long, DebtorAccumulator>,
+        dueShare: DueShare,
+        pendingIncrement: BigDecimal,
+        unpaidIncrement: BigDecimal,
+    ) {
+        val current = debtorsAccumulator[dueShare.subscriberId]
+        if (current == null) {
+            debtorsAccumulator[dueShare.subscriberId] = DebtorAccumulator(
+                subscriberId = dueShare.subscriberId,
+                subscriberName = dueShare.subscriberName,
+                subscriberEmail = dueShare.subscriberEmail,
+                pendingAmount = pendingIncrement,
+                unpaidAmount = unpaidIncrement
+            )
+        } else {
+            current.pendingAmount = current.pendingAmount.add(pendingIncrement)
+            current.unpaidAmount = current.unpaidAmount.add(unpaidIncrement)
+        }
     }
 
     private data class AssociationKey(
@@ -205,6 +264,9 @@ class DashboardService(
     )
 
     private data class DueShare(
+        val subscriberId: Long,
+        val subscriberName: String,
+        val subscriberEmail: String,
         val platformId: Long,
         val platformName: String,
         val userShare: BigDecimal,
@@ -214,5 +276,13 @@ class DashboardService(
         val platformName: String,
         var count: Int,
         var amount: BigDecimal,
+    )
+
+    private data class DebtorAccumulator(
+        val subscriberId: Long,
+        val subscriberName: String,
+        val subscriberEmail: String,
+        var pendingAmount: BigDecimal,
+        var unpaidAmount: BigDecimal,
     )
 }
