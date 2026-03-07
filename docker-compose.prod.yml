@@ -37,6 +37,7 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       MAIL_FROM: ${MAIL_FROM:-Splitfy <no-reply@splitfy.local>}
       SPLITFY_BILLING_PIX_KEY: ${PIX_KEY:-123.456.789-00}
+      SPLITFY_BILLING_PIX_COPY_PASTE: ${PIX_COPY_PASTE:-123.456.789-00}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@splitfy.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
     ports:

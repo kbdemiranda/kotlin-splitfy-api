@@ -1,5 +1,9 @@
 package io.github.splitfy.api.service.subscriber
 
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import io.github.splitfy.api.domain.entity.Subscriber
 import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.exception.BadRequestApiException
@@ -18,12 +22,16 @@ import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.github.splitfy.api.web.billing.dto.SubscriberBillingEmailRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriptionItemResponse
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.core.io.ClassPathResource
+import org.springframework.core.io.ByteArrayResource
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.awt.Color
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import javax.imageio.ImageIO
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDateTime
@@ -41,6 +49,7 @@ class SubscriberService(
     private val emailService: EmailService,
     private val emailTemplateService: EmailTemplateService,
     @Value("\${splitfy.billing.pix-key:123.456.789-00}") private val pixKey: String,
+    @Value("\${splitfy.billing.pix-copy-paste:123.456.789-00}") private val pixCopyPaste: String,
 ) {
 
     private val finalScale = 2
@@ -278,8 +287,8 @@ class SubscriberService(
         val htmlBody = buildBillingSummaryHtml(billingBySubscriber, referenceMonth)
         val inlineResources = mapOf(
             PIX_QR_CODE_CONTENT_ID to EmailService.InlineResource(
-                source = ClassPathResource("assets/qr-code.jpeg"),
-                contentType = "image/jpeg"
+                source = ByteArrayResource(generatePixQrCodePng(pixCopyPaste)),
+                contentType = "image/png"
             )
         )
 
@@ -339,6 +348,27 @@ class SubscriberService(
         return "R$ ${value.setScale(finalScale, rounding).toPlainString()}"
     }
 
+    private fun generatePixQrCodePng(content: String): ByteArray {
+        val normalizedContent = content.trim().ifBlank { pixKey }
+        val hints = mapOf(
+            EncodeHintType.MARGIN to 1,
+            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M
+        )
+        val matrix = QRCodeWriter().encode(normalizedContent, BarcodeFormat.QR_CODE, QR_CODE_SIZE, QR_CODE_SIZE, hints)
+        val image = BufferedImage(matrix.width, matrix.height, BufferedImage.TYPE_INT_RGB)
+
+        for (x in 0 until matrix.width) {
+            for (y in 0 until matrix.height) {
+                image.setRGB(x, y, if (matrix.get(x, y)) Color.BLACK.rgb else Color.WHITE.rgb)
+            }
+        }
+
+        return ByteArrayOutputStream().use { output ->
+            ImageIO.write(image, "PNG", output)
+            output.toByteArray()
+        }
+    }
+
     private data class BillingSummarySubscriber(
         val name: String,
         val email: String,
@@ -356,5 +386,6 @@ class SubscriberService(
     companion object {
         private val REFERENCE_MONTH_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MM/yyyy")
         private const val PIX_QR_CODE_CONTENT_ID = "pixQrCode"
+        private const val QR_CODE_SIZE = 256
     }
 }

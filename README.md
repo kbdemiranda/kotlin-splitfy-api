@@ -76,6 +76,7 @@ Required:
 - `MAIL_PASSWORD`
 - `MAIL_FROM`
 - `PIX_KEY`
+- `PIX_COPY_PASTE`
 
 Optional (recommended):
 
@@ -115,6 +116,7 @@ export MAIL_USERNAME="smtp-user"
 export MAIL_PASSWORD="smtp-password"
 export MAIL_FROM="Splitfy <no-reply@splitfy.local>"
 export PIX_KEY="123.456.789-00"
+export PIX_COPY_PASTE="000201010212..."
 ```
 
 ## Running Locally
@@ -166,6 +168,7 @@ Required `.env` values:
 - `MAIL_PASSWORD`
 - `MAIL_FROM`
 - `PIX_KEY`
+- `PIX_COPY_PASTE`
 
 Start:
 

@@ -45,7 +45,8 @@ class SubscriberServiceTest {
         billingService,
         emailService,
         emailTemplateService,
-        "123.456.789-00"
+        "123.456.789-00",
+        "000201010212PIX-TEST"
     )
 
     private fun sampleSubscriber(): Subscriber {
@@ -342,12 +343,14 @@ class SubscriberServiceTest {
         verify(emailService).sendHtml(
             eq("finance@splitfy.com"),
             argThat { this.contains("Resumo de cobranças Splitfy") },
-            argThat { this.contains("<html") }
+            argThat { this.contains("<html") },
+            argThat { containsKey("pixQrCode") }
         )
         verify(emailService).sendHtml(
             eq("owner@splitfy.com"),
             argThat { this.contains("Resumo de cobranças Splitfy") },
-            any()
+            any(),
+            argThat { containsKey("pixQrCode") }
         )
     }
 
