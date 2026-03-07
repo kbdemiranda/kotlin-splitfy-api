@@ -51,7 +51,7 @@ src/main/kotlin/io/github/splitfy/api
 
 src/main/resources
 ├── application.yml
-├── email              # inline email assets
+├── assets             # inline email assets
 └── templates/email # HTML email templates
 ```
 
@@ -75,6 +75,7 @@ Required:
 - `MAIL_USERNAME`
 - `MAIL_PASSWORD`
 - `MAIL_FROM`
+- `PIX_KEY`
 
 Optional (recommended):
 
@@ -113,6 +114,7 @@ export ADMIN_PASSWORD="ChangeMe123!"
 export MAIL_USERNAME="smtp-user"
 export MAIL_PASSWORD="smtp-password"
 export MAIL_FROM="Splitfy <no-reply@splitfy.local>"
+export PIX_KEY="123.456.789-00"
 ```
 
 ## Running Locally
@@ -163,6 +165,7 @@ Required `.env` values:
 - `MAIL_USERNAME`
 - `MAIL_PASSWORD`
 - `MAIL_FROM`
+- `PIX_KEY`
 
 Start:
 

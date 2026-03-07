@@ -17,6 +17,7 @@ import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.github.splitfy.api.web.billing.dto.SubscriberBillingEmailRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriptionItemResponse
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ClassPathResource
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -38,7 +39,8 @@ class SubscriberService(
     private val subscriberPlatformRepository: SubscriberPlatformRepository,
     private val billingService: BillingService,
     private val emailService: EmailService,
-    private val emailTemplateService: EmailTemplateService
+    private val emailTemplateService: EmailTemplateService,
+    @Value("\${splitfy.billing.pix-key:123.456.789-00}") private val pixKey: String,
 ) {
 
     private val finalScale = 2
@@ -276,7 +278,7 @@ class SubscriberService(
         val htmlBody = buildBillingSummaryHtml(billingBySubscriber, referenceMonth)
         val inlineResources = mapOf(
             PIX_QR_CODE_CONTENT_ID to EmailService.InlineResource(
-                source = ClassPathResource("email/qr-code.jpeg"),
+                source = ClassPathResource("assets/qr-code.jpeg"),
                 contentType = "image/jpeg"
             )
         )
@@ -327,7 +329,7 @@ class SubscriberService(
                 "subscriberCount" to subscribers.size,
                 "subscribers" to subscribers,
                 "grandTotal" to formatCurrency(grandTotal),
-                "pixKey" to PIX_KEY_PLACEHOLDER,
+                "pixKey" to pixKey,
                 "pixQrCodeCid" to PIX_QR_CODE_CONTENT_ID
             )
         )
@@ -353,7 +355,6 @@ class SubscriberService(
 
     companion object {
         private val REFERENCE_MONTH_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MM/yyyy")
-        private const val PIX_KEY_PLACEHOLDER = "3c5a3cc5-08ec-4497-9aea-cc552b6b839c"
         private const val PIX_QR_CODE_CONTENT_ID = "pixQrCode"
     }
 }
