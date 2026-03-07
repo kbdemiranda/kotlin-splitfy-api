@@ -218,6 +218,10 @@ fabric.properties
 # Icon must end with two \r
 Icon
 
+# Local environment files
+.env
+.env.*
+
 
 # Thumbnails
 ._*

@@ -1,5 +1,6 @@
 package io.github.splitfy.api.service.email
 
+import org.springframework.core.io.InputStreamSource
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.mail.MailException
 import org.springframework.mail.SimpleMailMessage
@@ -30,13 +31,21 @@ class EmailService(
         }
     }
 
-    fun sendHtml(to: String, subject: String, htmlBody: String) {
+    fun sendHtml(
+        to: String,
+        subject: String,
+        htmlBody: String,
+        inlineResources: Map<String, InlineResource> = emptyMap()
+    ) {
         val mimeMessage = mailSender.createMimeMessage()
-        val helper = MimeMessageHelper(mimeMessage, "UTF-8")
+        val helper = MimeMessageHelper(mimeMessage, inlineResources.isNotEmpty(), "UTF-8")
         helper.setFrom(from)
         helper.setTo(to)
         helper.setSubject(subject)
         helper.setText(htmlBody, true)
+        inlineResources.forEach { (contentId, resource) ->
+            helper.addInline(contentId, resource.source, resource.contentType)
+        }
         executeWithRetry("html", to, subject) {
             mailSender.send(mimeMessage)
         }
@@ -74,4 +83,9 @@ class EmailService(
             Thread.currentThread().interrupt()
         }
     }
+
+    data class InlineResource(
+        val source: InputStreamSource,
+        val contentType: String
+    )
 }

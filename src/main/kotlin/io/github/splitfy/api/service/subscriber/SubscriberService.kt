@@ -17,6 +17,7 @@ import io.github.splitfy.api.web.subscriber.dto.SubscriberRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriberResponse
 import io.github.splitfy.api.web.billing.dto.SubscriberBillingEmailRequest
 import io.github.splitfy.api.web.subscriber.dto.SubscriptionItemResponse
+import org.springframework.core.io.ClassPathResource
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
@@ -273,9 +274,15 @@ class SubscriberService(
 
         val subject = "Resumo de cobranças Splitfy - $referenceMonth"
         val htmlBody = buildBillingSummaryHtml(billingBySubscriber, referenceMonth)
+        val inlineResources = mapOf(
+            PIX_QR_CODE_CONTENT_ID to EmailService.InlineResource(
+                source = ClassPathResource("email/qr-code.jpeg"),
+                contentType = "image/jpeg"
+            )
+        )
 
         emails.forEach { email ->
-            emailService.sendHtml(email, subject, htmlBody)
+            emailService.sendHtml(email, subject, htmlBody, inlineResources)
         }
     }
 
@@ -320,7 +327,8 @@ class SubscriberService(
                 "subscriberCount" to subscribers.size,
                 "subscribers" to subscribers,
                 "grandTotal" to formatCurrency(grandTotal),
-                "pixKey" to PIX_KEY_PLACEHOLDER
+                "pixKey" to PIX_KEY_PLACEHOLDER,
+                "pixQrCodeCid" to PIX_QR_CODE_CONTENT_ID
             )
         )
     }
@@ -345,6 +353,7 @@ class SubscriberService(
 
     companion object {
         private val REFERENCE_MONTH_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MM/yyyy")
-        private const val PIX_KEY_PLACEHOLDER = "email@email.com"
+        private const val PIX_KEY_PLACEHOLDER = "3c5a3cc5-08ec-4497-9aea-cc552b6b839c"
+        private const val PIX_QR_CODE_CONTENT_ID = "pixQrCode"
     }
 }

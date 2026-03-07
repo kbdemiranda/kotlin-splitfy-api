@@ -51,6 +51,7 @@ src/main/kotlin/io/github/splitfy/api
 
 src/main/resources
 ├── application.yml
+├── email              # inline email assets
 └── templates/email # HTML email templates
 ```
 
@@ -138,37 +139,133 @@ Default server port: `8080`
 
 ## Running with Docker
 
-This project includes `Dockerfile` and `docker-compose.yml` to run the API container.
-The compose setup expects an existing PostgreSQL running on host at `localhost:25432` (from inside container: `host.docker.internal:25432`).
-The compose setup runs with `SPRING_PROFILES_ACTIVE=docker`, enabling automatic schema update for local development.
+There are now two compose flows in this repository:
 
-1. Ensure `.env` has at least:
-   - `JWT_SECRET`
-   - `JWT_EXPIRATION_MS`
-   - `MAIL_USERNAME`
-   - `MAIL_PASSWORD`
-   - `MAIL_FROM`
-2. Start containers:
+- `docker-compose.yml`: local development stack
+- `docker-compose.prod.yml`: production-style stack
+
+### Development stack
+
+Use this when you want to run database, backend, and frontend locally with hot reload on the Angular app.
+
+Behavior:
+
+- starts PostgreSQL inside Docker
+- builds backend locally from this repository
+- builds frontend locally from `../angular-splitfy-frontend` using `Dockerfile.dev`
+- enables `SPRING_PROFILES_ACTIVE=dev`
+- enables Hibernate schema auto-update for local bootstrap
+
+Required `.env` values:
+
+- `JWT_SECRET`
+- `JWT_EXPIRATION_MS`
+- `MAIL_USERNAME`
+- `MAIL_PASSWORD`
+- `MAIL_FROM`
+
+Start:
 
 ```bash
 docker compose up --build -d
 ```
 
-3. Check logs:
+Logs:
 
 ```bash
-docker compose logs -f api
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
 ```
 
-4. Stop containers:
+Stop:
 
 ```bash
 docker compose down
 ```
 
 Endpoints:
+
+- Frontend: `http://localhost:4242`
+- API: `http://localhost:9090`
+- Swagger: `http://localhost:9090/swagger-ui/index.html`
+- PostgreSQL: `localhost:35432`
+
+### Production-style stack
+
+Use this to validate the production Docker images/layout locally, without Angular dev server behavior.
+
+Behavior:
+
+- builds backend with the runtime `Dockerfile`
+- builds frontend with the production `Dockerfile`
+- exposes backend directly on `http://localhost:8080`
+- does **not** enable development schema bootstrap
+
+Start:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+Logs:
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f
+```
+
+Stop:
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+Endpoints:
+
+- Frontend: `http://localhost:4242`
 - API: `http://localhost:8080`
 - Swagger: `http://localhost:8080/swagger-ui/index.html`
+
+Important:
+
+- `docker-compose.prod.yml` expects an already provisioned schema, because the app default config keeps `spring.jpa.hibernate.ddl-auto=none`
+- use `docker-compose.yml` for first-time local bootstrap and day-to-day development
+
+## Building and Publishing the Image
+
+Build the image locally:
+
+```bash
+docker build \
+  --build-arg APP_VERSION=0.0.1 \
+  -t YOUR_DOCKERHUB_USER/splitfy-api:0.0.1 \
+  -t YOUR_DOCKERHUB_USER/splitfy-api:latest .
+```
+
+Run the image locally:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e DB_URL="jdbc:postgresql://host.docker.internal:25432/splitfy" \
+  -e DB_USER="postgres" \
+  -e DB_PASSWORD="postgres" \
+  -e JWT_SECRET="replace-with-a-strong-secret-at-least-32-bytes" \
+  -e JWT_EXPIRATION_MS="3600000" \
+  -e MAIL_USERNAME="smtp-user" \
+  -e MAIL_PASSWORD="smtp-password" \
+  -e MAIL_FROM="Splitfy <no-reply@splitfy.local>" \
+  YOUR_DOCKERHUB_USER/splitfy-api:0.0.1
+```
+
+Login and publish to Docker Hub:
+
+```bash
+docker login
+docker push YOUR_DOCKERHUB_USER/splitfy-api:0.0.1
+docker push YOUR_DOCKERHUB_USER/splitfy-api:latest
+```
+
+If you want to reuse the same image name in Compose, set the service image to the same Docker Hub tag before running the production-style compose.
 
 ## Database Notes
 
@@ -176,7 +273,7 @@ Endpoints:
 - `spring.flyway.enabled=false`
 - `spring.sql.init.mode=never`
 
-This means schema creation/migrations are not auto-managed in the current setup. Ensure your PostgreSQL schema/tables already exist before running in non-test environments.
+This means schema creation/migrations are not auto-managed in the default runtime setup. Ensure your PostgreSQL schema/tables already exist before running non-development environments.
 
 ## API Documentation
 

@@ -23,6 +23,7 @@ import kotlin.random.Random
 @Component
 @Profile("dev")
 class DataInitializer(
+    private val defaultProfileBootstrap: DefaultProfileBootstrap,
     private val platformRepository: PlatformRepository,
     private val subscriberRepository: SubscriberRepository,
     private val subscriberPlatformRepository: SubscriberPlatformRepository
@@ -32,6 +33,7 @@ class DataInitializer(
 
     @Transactional
     override fun run(args: ApplicationArguments) {
+        defaultProfileBootstrap.ensureProfiles()
 //        val platforms = initPlatform()
 //        val subscribers = initSubscriber()
 //        initRandomAssociations(subscribers, platforms)

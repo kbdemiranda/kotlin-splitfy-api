@@ -3,5 +3,7 @@
 .idea
 target
 .DS_Store
+.env
+*.log
 README.md
 LICENSE

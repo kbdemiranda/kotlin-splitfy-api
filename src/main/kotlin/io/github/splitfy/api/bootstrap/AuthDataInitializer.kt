@@ -3,7 +3,6 @@ package io.github.splitfy.api.bootstrap
 import io.github.splitfy.api.domain.entity.Profile
 import io.github.splitfy.api.domain.entity.User
 import io.github.splitfy.api.domain.enums.ProfileName
-import io.github.splitfy.api.repository.ProfileRepository
 import io.github.splitfy.api.repository.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class AuthDataInitializer(
-    private val profileRepository: ProfileRepository,
+    private val defaultProfileBootstrap: DefaultProfileBootstrap,
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     @Value("\${splitfy.admin.email}") private val adminEmail: String?,
@@ -24,25 +23,8 @@ class AuthDataInitializer(
     private val logger = LoggerFactory.getLogger(AuthDataInitializer::class.java)
 
     override fun run(args: ApplicationArguments) {
-        val profiles = ensureProfiles()
+        val profiles = defaultProfileBootstrap.ensureProfiles()
         ensureAdminUser(profiles)
-    }
-
-    private fun ensureProfiles(): List<Profile> {
-        val createdProfiles = mutableListOf<ProfileName>()
-
-        for (profileName in ProfileName.entries) {
-            if (!profileRepository.existsByName(profileName)) {
-                profileRepository.save(Profile(name = profileName))
-                createdProfiles.add(profileName)
-            }
-        }
-
-        if (createdProfiles.isNotEmpty()) {
-            logger.info("Created default profiles: {}", createdProfiles)
-        }
-
-        return profileRepository.findByNameIn(ProfileName.entries)
     }
 
     private fun ensureAdminUser(profiles: List<Profile>) {
