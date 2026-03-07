@@ -44,7 +44,8 @@ class SubscriberServiceTest {
         subscriberPlatformRepository,
         billingService,
         emailService,
-        emailTemplateService
+        emailTemplateService,
+        "123.456.789-00"
     )
 
     private fun sampleSubscriber(): Subscriber {
