@@ -221,6 +221,7 @@ Icon
 # Local environment files
 .env
 .env.*
+!.env.example
 
 
 # Thumbnails

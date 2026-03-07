@@ -63,7 +63,13 @@ src/main/resources
 
 ## Environment Variables
 
-The application expects environment variables (it does not auto-load `.env` by default).
+Use the example file as a starting point:
+
+```bash
+cp .env.example .env
+```
+
+The application expects environment variables (it does not auto-load `.env` by default outside Docker Compose).
 
 Required:
 
