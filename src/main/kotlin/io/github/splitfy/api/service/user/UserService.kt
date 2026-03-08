@@ -6,7 +6,6 @@ import io.github.splitfy.api.domain.enums.ProfileName
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
-import io.github.splitfy.api.logging.EmailLogContext
 import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
@@ -195,13 +194,8 @@ class UserService(
             to = user.email,
             subject = subject,
             htmlBody = htmlBody,
-            context = EmailLogContext(
-                event = "email.user.welcome.sent",
-                entity = "user",
-                entityId = user.id,
-                metadata = mapOf("email" to user.email)
-            )
         )
+        log.infoEvent("email.user.welcome.sent", "entity" to "user", "entityId" to user.id, "email" to user.email)
     }
 
     private fun resolveProfileForCreate(request: UserCreateRequest): Profile {

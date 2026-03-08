@@ -9,7 +9,6 @@ import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
-import io.github.splitfy.api.logging.EmailLogContext
 import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
@@ -311,16 +310,8 @@ class SubscriberService(
                 subject = subject,
                 htmlBody = htmlBody,
                 inlineResources = inlineResources,
-                context = EmailLogContext(
-                    event = "email.billing.summary.sent",
-                    entity = "subscriber_batch",
-                    metadata = mapOf(
-                        "subscriberIds" to subscriberIds.joinToString(","),
-                        "referenceMonth" to referenceMonth,
-                        "recipient" to email
-                    )
-                )
             )
+            log.infoEvent("email.billing.summary.sent", "entity" to "subscriber_batch", "subscriberIds" to subscriberIds.joinToString(","), "referenceMonth" to referenceMonth, "recipient" to email)
         }
         log.infoEvent("subscriber.billing-summary.dispatched", "entity" to "subscriber_batch", "subscriberIds" to subscriberIds.joinToString(","), "recipientCount" to emails.size, "referenceMonth" to referenceMonth)
     }

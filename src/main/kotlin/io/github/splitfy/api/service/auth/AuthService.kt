@@ -4,7 +4,6 @@ import io.github.splitfy.api.domain.entity.PasswordResetToken
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.repository.PasswordResetTokenRepository
 import io.github.splitfy.api.exception.UnauthorizedApiException
-import io.github.splitfy.api.logging.EmailLogContext
 import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
@@ -174,13 +173,8 @@ class AuthService(
             to = email,
             subject = subject,
             htmlBody = htmlBody,
-            context = EmailLogContext(
-                event = "email.auth.password-reset.sent",
-                entity = "password_reset_token",
-                entityId = resetTokenId,
-                metadata = mapOf("userId" to userId, "recipient" to email)
-            )
         )
+        log.infoEvent("email.auth.password-reset.sent", "entity" to "password_reset_token", "entityId" to resetTokenId, "userId" to userId, "recipient" to email)
     }
 
     companion object {
