@@ -6,6 +6,7 @@ import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.PaymentConfirmationRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
@@ -19,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.slf4j.LoggerFactory
 import java.time.LocalDateTime
 import java.time.YearMonth
 
@@ -29,6 +31,7 @@ class PaymentConfirmationService(
     private val subscriberPlatformRepository: SubscriberPlatformRepository,
     private val paymentConfirmationRepository: PaymentConfirmationRepository
 ) {
+    private val log = LoggerFactory.getLogger(PaymentConfirmationService::class.java)
 
     @PreAuthorize("hasRole('ADMIN')")
     fun createAdminConfirmations(
@@ -43,7 +46,7 @@ class PaymentConfirmationService(
         val referenceMonth = parseReferenceMonth(request.referenceMonth)
         val subscriber = loadSubscriber(subscriberId)
 
-        return request.platformIds
+        val confirmations = request.platformIds
             .distinct()
             .map { platformId ->
                 val association = subscriberPlatformRepository.findBySubscriberIdAndPlatformId(subscriber.id!!, platformId)
@@ -64,6 +67,8 @@ class PaymentConfirmationService(
                 )
                 toResponse(upserted)
             }
+        log.infoEvent("payment.confirmation.bulk-upsert", "entity" to "payment_confirmation", "subscriberId" to subscriber.id, "referenceMonth" to referenceMonth, "count" to confirmations.size, "requestedBy" to actorEmail)
+        return confirmations
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -78,6 +83,7 @@ class PaymentConfirmationService(
                 referenceMonth = parsedMonth
             )
         }
+        log.infoEvent("crud.list", "entity" to "payment_confirmation", "status" to PaymentConfirmationStatus.PENDING, "referenceMonth" to referenceMonth, "resultCount" to pending.size)
         return pending.map { toPendingApprovalResponse(it) }
     }
 

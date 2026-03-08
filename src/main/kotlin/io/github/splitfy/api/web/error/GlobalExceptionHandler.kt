@@ -1,9 +1,12 @@
 package io.github.splitfy.api.web.error
 
 import io.github.splitfy.api.exception.ApiException
+import io.github.splitfy.api.logging.errorEvent
+import io.github.splitfy.api.logging.warnEvent
 import jakarta.persistence.EntityNotFoundException
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
@@ -172,11 +175,18 @@ class GlobalExceptionHandler {
         path: String,
         ex: Exception
     ) {
-        val logMessage = "API exception: status=${status.value()} code=$code message='$message' path=$path"
+        val fields = arrayOf(
+            "requestId" to MDC.get("requestId"),
+            "httpStatus" to status.value(),
+            "errorCode" to code,
+            "path" to path,
+            "exceptionType" to ex::class.simpleName,
+            "message" to message,
+        )
         if (status.is5xxServerError) {
-            log.error(logMessage, ex)
+            log.errorEvent("http.request.exception", ex, *fields)
             return
         }
-        log.warn(logMessage, ex)
+        log.warnEvent("http.request.exception", ex, *fields)
     }
 }

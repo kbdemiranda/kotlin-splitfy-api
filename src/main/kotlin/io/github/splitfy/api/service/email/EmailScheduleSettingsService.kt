@@ -3,6 +3,7 @@ package io.github.splitfy.api.service.email
 import io.github.splitfy.api.domain.entity.EmailScheduleOccurrence
 import io.github.splitfy.api.domain.entity.EmailScheduleSetting
 import io.github.splitfy.api.exception.BadRequestApiException
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.EmailScheduleOccurrenceRepository
 import io.github.splitfy.api.repository.EmailScheduleSettingRepository
 import io.github.splitfy.api.web.emailschedule.dto.EmailScheduleOccurrenceResponse
@@ -10,6 +11,7 @@ import io.github.splitfy.api.web.emailschedule.dto.EmailScheduleSettingsRequest
 import io.github.splitfy.api.web.emailschedule.dto.EmailScheduleSettingsResponse
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.slf4j.LoggerFactory
 import java.time.ZoneId
 
 @Service
@@ -18,6 +20,7 @@ class EmailScheduleSettingsService(
     private val emailScheduleSettingRepository: EmailScheduleSettingRepository,
     private val emailScheduleOccurrenceRepository: EmailScheduleOccurrenceRepository,
 ) {
+    private val log = LoggerFactory.getLogger(EmailScheduleSettingsService::class.java)
 
     fun getDashboardSchedule(): EmailScheduleSettingsResponse {
         val setting = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
@@ -27,6 +30,7 @@ class EmailScheduleSettingsService(
                 isEnabled = false,
                 timezone = DEFAULT_TIMEZONE,
             )
+        log.infoEvent("crud.get", "entity" to "email_schedule", "entityId" to setting.id, "scheduleKey" to setting.scheduleKey, "enabled" to setting.isEnabled)
         return toResponse(setting)
     }
 
@@ -60,6 +64,7 @@ class EmailScheduleSettingsService(
 
         val reloaded = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
             ?: throw IllegalStateException("Failed to reload dashboard e-mail schedule after update")
+        log.infoEvent("crud.update", "entity" to "email_schedule", "entityId" to reloaded.id, "scheduleKey" to reloaded.scheduleKey, "enabled" to reloaded.isEnabled, "timezone" to reloaded.timezone, "occurrences" to reloaded.occurrences.size)
         return toResponse(reloaded)
     }
 

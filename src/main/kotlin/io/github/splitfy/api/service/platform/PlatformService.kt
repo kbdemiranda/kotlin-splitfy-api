@@ -6,8 +6,10 @@ import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.web.platform.dto.PlatformResponse
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -23,6 +25,7 @@ class PlatformService(
     private val platformRepository: PlatformRepository,
     private val exchangeRateService: ExchangeRateService
 ) {
+    private val log = LoggerFactory.getLogger(PlatformService::class.java)
 
     fun create(dto: PlatformRequest): PlatformResponse {
         val entity = Platform(
@@ -39,6 +42,7 @@ class PlatformService(
             billingDate = dto.billingDay
         )
         val saved = platformRepository.save(entity)
+        log.infoEvent("crud.create", "entity" to "platform", "entityId" to saved.id, "entityToken" to saved.platformToken, "name" to saved.name)
         return toDto(saved, null)
     }
 
@@ -53,12 +57,14 @@ class PlatformService(
             .filter { it != Currency.BRL }
             .distinct()
         val ratesByCurrency = currencies.associateWith { exchangeRateService.getLatestBrlRate(it) }
+        log.infoEvent("crud.list", "entity" to "platform", "page" to pageable.pageNumber, "size" to pageable.pageSize, "filterName" to name, "resultCount" to platforms.numberOfElements)
         return platforms.map { toDto(it, ratesByCurrency[it.currency]) }
     }
 
     fun findById(id: Long): PlatformResponse? {
         val platform = getPlatform(id)
         val quote = if (platform.currency == Currency.BRL) null else exchangeRateService.getLatestBrlRate(platform.currency)
+        log.infoEvent("crud.get", "entity" to "platform", "entityId" to platform.id, "entityToken" to platform.platformToken, "name" to platform.name)
         return toDto(platform, quote)
     }
 
@@ -78,12 +84,14 @@ class PlatformService(
             billingDate = dto.billingDay
         )
         val saved = platformRepository.save(updated)
+        log.infoEvent("crud.update", "entity" to "platform", "entityId" to saved.id, "entityToken" to saved.platformToken, "name" to saved.name)
         return toDto(saved, null)
     }
 
     fun delete(id: Long) {
         val platform = getPlatform(id).copy(deletedAt = LocalDateTime.now())
-        platformRepository.save(platform)
+        val saved = platformRepository.save(platform)
+        log.infoEvent("crud.delete", "entity" to "platform", "entityId" to saved.id, "entityToken" to saved.platformToken, "name" to saved.name)
     }
 
     fun getPlatform(id: Long): Platform {

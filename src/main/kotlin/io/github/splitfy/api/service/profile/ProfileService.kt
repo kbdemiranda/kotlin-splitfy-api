@@ -4,12 +4,14 @@ import io.github.splitfy.api.domain.entity.Profile
 import io.github.splitfy.api.domain.enums.ProfileName
 import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.ProfileRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.web.profile.dto.ProfileRequest
 import io.github.splitfy.api.web.profile.dto.ProfileResponse
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -20,6 +22,7 @@ class ProfileService(
     private val profileRepository: ProfileRepository,
     private val userRepository: UserRepository,
 ) {
+    private val log = LoggerFactory.getLogger(ProfileService::class.java)
 
     fun create(request: ProfileRequest): ProfileResponse {
         if (profileRepository.existsByName(request.name)) {
@@ -27,15 +30,20 @@ class ProfileService(
         }
 
         val profile = profileRepository.save(Profile(name = request.name))
+        log.infoEvent("crud.create", "entity" to "profile", "entityId" to profile.id, "profileName" to profile.name)
         return toResponse(profile)
     }
 
     fun list(pageable: Pageable): Page<ProfileResponse> {
-        return profileRepository.findAll(pageable).map(::toResponse)
+        val profiles = profileRepository.findAll(pageable)
+        log.infoEvent("crud.list", "entity" to "profile", "page" to pageable.pageNumber, "size" to pageable.pageSize, "resultCount" to profiles.numberOfElements)
+        return profiles.map(::toResponse)
     }
 
     fun getById(id: UUID): ProfileResponse {
-        return toResponse(getProfile(id))
+        val profile = getProfile(id)
+        log.infoEvent("crud.get", "entity" to "profile", "entityId" to profile.id, "profileName" to profile.name)
+        return toResponse(profile)
     }
 
     fun update(id: UUID, request: ProfileRequest): ProfileResponse {
@@ -46,6 +54,7 @@ class ProfileService(
 
         existing.name = request.name
         val saved = profileRepository.save(existing)
+        log.infoEvent("crud.update", "entity" to "profile", "entityId" to saved.id, "profileName" to saved.name)
         return toResponse(saved)
     }
 
@@ -56,6 +65,7 @@ class ProfileService(
 
         val profile = getProfile(id)
         profileRepository.delete(profile)
+        log.infoEvent("crud.delete", "entity" to "profile", "entityId" to profile.id, "profileName" to profile.name)
     }
 
     fun getProfile(id: UUID): Profile {

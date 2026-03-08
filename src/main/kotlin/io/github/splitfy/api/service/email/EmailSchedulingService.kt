@@ -1,6 +1,7 @@
 package io.github.splitfy.api.service.email
 
 import io.github.splitfy.api.domain.entity.EmailScheduleSetting
+import io.github.splitfy.api.logging.EmailLogContext
 import io.github.splitfy.api.repository.EmailScheduleSettingRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.dashboard.DashboardService
@@ -60,7 +61,13 @@ class EmailSchedulingService(
         emailService.sendHtml(
             to = recipient,
             subject = subject,
-            htmlBody = htmlBody
+            htmlBody = htmlBody,
+            context = EmailLogContext(
+                event = "email.dashboard.scheduled.sent",
+                entity = "email_schedule",
+                entityId = schedule.id,
+                metadata = mapOf("scheduleKey" to schedule.scheduleKey, "recipient" to recipient, "referenceMonth" to kpis.referenceMonth)
+            )
         )
 
         log.info("Dashboard scheduled e-mail sent to {}", recipient)

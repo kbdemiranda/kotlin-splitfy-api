@@ -4,6 +4,8 @@ import io.github.splitfy.api.domain.entity.PasswordResetToken
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.repository.PasswordResetTokenRepository
 import io.github.splitfy.api.exception.UnauthorizedApiException
+import io.github.splitfy.api.logging.EmailLogContext
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.email.EmailTemplateService
@@ -22,6 +24,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.slf4j.LoggerFactory
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -41,6 +44,7 @@ class AuthService(
     private val emailTemplateService: EmailTemplateService,
     @Value("\${splitfy.auth.reset-token-expiration-minutes:30}") private val resetTokenExpirationMinutes: Long,
 ) {
+    private val log = LoggerFactory.getLogger(AuthService::class.java)
 
     fun login(request: LoginRequest): LoginResponse {
         runCatching {
@@ -63,6 +67,7 @@ class AuthService(
         val token = jwtService.generateToken(user)
 
         val userId = user.id ?: throw IllegalStateException("User ID must not be null")
+        log.infoEvent("auth.login.succeeded", "entity" to "user", "entityId" to userId, "email" to user.email, "profile" to user.profile?.name)
         return LoginResponse(
             token = token,
             expiresInMs = jwtProperties.expirationMs,
@@ -75,6 +80,7 @@ class AuthService(
     fun logout(token: String) {
         val expiresAt = jwtService.extractExpiration(token)
         tokenBlacklistService.blacklist(token, expiresAt)
+        log.infoEvent("auth.logout.succeeded", "entity" to "jwt", "tokenHash" to hashToken(token), "expiresAt" to expiresAt)
     }
 
     @Transactional
@@ -90,7 +96,7 @@ class AuthService(
 
             val userId = user.id ?: throw IllegalStateException("User ID must not be null")
             passwordResetTokenRepository.invalidateAllActiveByUserId(userId, now)
-            passwordResetTokenRepository.save(
+            val savedToken = passwordResetTokenRepository.save(
                 PasswordResetToken(
                     user = user,
                     tokenHash = tokenHash,
@@ -99,7 +105,8 @@ class AuthService(
                 )
             )
 
-            sendResetPasswordEmail(user.email, user.name, rawToken, expiresAt)
+            log.infoEvent("auth.password-reset.requested", "entity" to "password_reset_token", "entityId" to savedToken.id, "userId" to userId, "requestIp" to requesterIp)
+            sendResetPasswordEmail(user.email, user.name, rawToken, expiresAt, userId, savedToken.id)
         }
 
         return SimpleMessageResponse("If the email is registered, reset instructions have been sent.")
@@ -128,6 +135,7 @@ class AuthService(
 
         val userId = user.id ?: throw IllegalStateException("User ID must not be null")
         passwordResetTokenRepository.invalidateAllActiveByUserId(userId, now)
+        log.infoEvent("auth.password-reset.completed", "entity" to "user", "entityId" to userId, "resetTokenId" to resetToken.id)
 
         return SimpleMessageResponse("Password reset successful.")
     }
@@ -147,7 +155,9 @@ class AuthService(
         email: String,
         name: String,
         resetToken: String,
-        expiresAt: LocalDateTime
+        expiresAt: LocalDateTime,
+        userId: Any,
+        resetTokenId: Any?
     ) {
         val subject = "Splitfy - redefinicao de senha"
         val htmlBody = emailTemplateService.renderTemplate(
@@ -164,6 +174,12 @@ class AuthService(
             to = email,
             subject = subject,
             htmlBody = htmlBody,
+            context = EmailLogContext(
+                event = "email.auth.password-reset.sent",
+                entity = "password_reset_token",
+                entityId = resetTokenId,
+                metadata = mapOf("userId" to userId, "recipient" to email)
+            )
         )
     }
 

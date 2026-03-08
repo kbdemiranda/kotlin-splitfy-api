@@ -9,6 +9,8 @@ import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.logging.EmailLogContext
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
@@ -25,6 +27,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.slf4j.LoggerFactory
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -51,6 +54,7 @@ class SubscriberService(
     @Value("\${splitfy.billing.pix-key:123.456.789-00}") private val pixKey: String,
     @Value("\${splitfy.billing.pix-copy-paste:123.456.789-00}") private val pixCopyPaste: String,
 ) {
+    private val log = LoggerFactory.getLogger(SubscriberService::class.java)
 
     private val finalScale = 2
     private val rounding = RoundingMode.HALF_UP
@@ -63,6 +67,7 @@ class SubscriberService(
             createdAt = LocalDateTime.now(),
         )
         val saved = subscriberRepository.save(entity)
+        log.infoEvent("crud.create", "entity" to "subscriber", "entityId" to saved.id, "entityToken" to saved.subscriberToken, "email" to saved.email)
         return toDto(saved)
     }
 
@@ -72,17 +77,21 @@ class SubscriberService(
         } else {
             subscriberRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase(name, pageable)
         }
+        log.infoEvent("crud.list", "entity" to "subscriber", "page" to pageable.pageNumber, "size" to pageable.pageSize, "filterName" to name, "resultCount" to subscribers.numberOfElements)
         return subscribers.map { toDto(it, includeSubscriptions = false) }
     }
 
     fun get(id: Long): SubscriberResponse? {
         val subscriber = getSubscriber(id)
+        log.infoEvent("crud.get", "entity" to "subscriber", "entityId" to subscriber.id, "entityToken" to subscriber.subscriberToken, "email" to subscriber.email)
         return toDto(subscriber, includeSubscriptions = true)
     }
 
     fun getSubscriptions(id: Long): List<SubscriptionItemResponse> {
         val subscriber = getSubscriber(id)
-        return toDto(subscriber, includeSubscriptions = true).subscriptions
+        val subscriptions = toDto(subscriber, includeSubscriptions = true).subscriptions
+        log.infoEvent("subscriber.subscriptions.list", "entity" to "subscriber", "entityId" to subscriber.id, "entityToken" to subscriber.subscriberToken, "subscriptionCount" to subscriptions.size)
+        return subscriptions
     }
 
     @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
@@ -93,12 +102,14 @@ class SubscriberService(
             updatedAt = LocalDateTime.now()
         )
         val saved = subscriberRepository.save(updated)
+        log.infoEvent("crud.update", "entity" to "subscriber", "entityId" to saved.id, "entityToken" to saved.subscriberToken, "email" to saved.email)
         return toDto(saved)
     }
 
     fun delete(id: Long) {
         val subscriber = getSubscriber(id).copy(deletedAt = LocalDateTime.now())
-        subscriberRepository.save(subscriber)
+        val saved = subscriberRepository.save(subscriber)
+        log.infoEvent("crud.delete", "entity" to "subscriber", "entityId" to saved.id, "entityToken" to saved.subscriberToken, "email" to saved.email)
     }
 
     private fun getSubscriber(id: Long): Subscriber {
@@ -206,6 +217,7 @@ class SubscriberService(
             )
             platformRepository.save(updatedPlatform)
         }
+        log.infoEvent("subscriber.platforms.associated", "entity" to "subscriber", "entityId" to subscriber.id, "entityToken" to subscriber.subscriberToken, "platformIds" to platformIds.joinToString(","))
     }
 
     @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")
@@ -246,6 +258,7 @@ class SubscriberService(
             )
             platformRepository.save(updatedPlatform)
         }
+        log.infoEvent("subscriber.platforms.disassociated", "entity" to "subscriber", "entityId" to subscriber.id, "entityToken" to subscriber.subscriberToken, "platformIds" to platformIds.joinToString(","))
     }
 
     fun sendBillingSummaryToEmails(request: SubscriberBillingEmailRequest) {
@@ -293,8 +306,23 @@ class SubscriberService(
         )
 
         emails.forEach { email ->
-            emailService.sendHtml(email, subject, htmlBody, inlineResources)
+            emailService.sendHtml(
+                to = email,
+                subject = subject,
+                htmlBody = htmlBody,
+                inlineResources = inlineResources,
+                context = EmailLogContext(
+                    event = "email.billing.summary.sent",
+                    entity = "subscriber_batch",
+                    metadata = mapOf(
+                        "subscriberIds" to subscriberIds.joinToString(","),
+                        "referenceMonth" to referenceMonth,
+                        "recipient" to email
+                    )
+                )
+            )
         }
+        log.infoEvent("subscriber.billing-summary.dispatched", "entity" to "subscriber_batch", "subscriberIds" to subscriberIds.joinToString(","), "recipientCount" to emails.size, "referenceMonth" to referenceMonth)
     }
 
     private fun parseReferenceMonthOrNow(referenceMonth: String?): YearMonth {

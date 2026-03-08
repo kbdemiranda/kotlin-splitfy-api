@@ -6,6 +6,8 @@ import io.github.splitfy.api.domain.enums.ProfileName
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ConflictApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.logging.EmailLogContext
+import io.github.splitfy.api.logging.infoEvent
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.email.EmailTemplateService
@@ -17,6 +19,7 @@ import io.github.splitfy.api.web.user.dto.UserResponse
 import io.github.splitfy.api.web.user.dto.UserUpdateRequest
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -32,6 +35,7 @@ class UserService(
     private val emailTemplateService: EmailTemplateService,
     private val passwordEncoder: PasswordEncoder,
 ) {
+    private val log = LoggerFactory.getLogger(UserService::class.java)
 
     fun create(request: UserCreateRequest): UserResponse {
         if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(request.email)) {
@@ -49,6 +53,7 @@ class UserService(
 
         val saved = userRepository.save(user)
         sendWelcomeEmail(saved)
+        log.infoEvent("crud.create", "entity" to "user", "entityId" to saved.id, "email" to saved.email, "profileId" to saved.profile?.id)
         return toResponse(saved)
     }
 
@@ -59,11 +64,14 @@ class UserService(
             userRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase(name, pageable)
         }
 
+        log.infoEvent("crud.list", "entity" to "user", "page" to pageable.pageNumber, "size" to pageable.pageSize, "filterName" to name, "resultCount" to users.numberOfElements)
         return users.map(::toResponse)
     }
 
     fun getById(id: UUID): UserResponse {
-        return toResponse(getActiveUser(id))
+        val user = getActiveUser(id)
+        log.infoEvent("crud.get", "entity" to "user", "entityId" to user.id, "email" to user.email, "profileId" to user.profile?.id)
+        return toResponse(user)
     }
 
     fun update(id: UUID, request: UserUpdateRequest): UserResponse {
@@ -84,6 +92,7 @@ class UserService(
         request.isEnabled?.let { user.isEnabled = it }
 
         val saved = userRepository.save(user)
+        log.infoEvent("crud.update", "entity" to "user", "entityId" to saved.id, "email" to saved.email, "profileId" to saved.profile?.id, "isEnabled" to saved.isEnabled)
         return toResponse(saved)
     }
 
@@ -110,7 +119,9 @@ class UserService(
         }
 
         user.receivesDashboardEmail = request.receivesDashboardEmail
-        return toResponse(userRepository.save(user))
+        val saved = userRepository.save(user)
+        log.infoEvent("user.dashboard-email-preference.updated", "entity" to "user", "entityId" to saved.id, "email" to saved.email, "receivesDashboardEmail" to saved.receivesDashboardEmail)
+        return toResponse(saved)
     }
 
     fun softDelete(id: UUID) {
@@ -118,19 +129,24 @@ class UserService(
         user.isEnabled = false
         user.receivesDashboardEmail = false
         user.deletedAt = LocalDateTime.now()
-        userRepository.save(user)
+        val saved = userRepository.save(user)
+        log.infoEvent("crud.delete", "entity" to "user", "entityId" to saved.id, "email" to saved.email)
     }
 
     fun associateProfile(id: UUID, profileId: UUID): UserResponse {
         val user = getActiveUser(id)
         user.profile = profileService.getProfile(profileId)
-        return toResponse(userRepository.save(user))
+        val saved = userRepository.save(user)
+        log.infoEvent("user.profile.associated", "entity" to "user", "entityId" to saved.id, "profileId" to saved.profile?.id, "email" to saved.email)
+        return toResponse(saved)
     }
 
     fun disassociateProfile(id: UUID): UserResponse {
         val user = getActiveUser(id)
         user.profile = null
-        return toResponse(userRepository.save(user))
+        val saved = userRepository.save(user)
+        log.infoEvent("user.profile.disassociated", "entity" to "user", "entityId" to saved.id, "email" to saved.email)
+        return toResponse(saved)
     }
 
     private fun getActiveUser(id: UUID): User {
@@ -179,6 +195,12 @@ class UserService(
             to = user.email,
             subject = subject,
             htmlBody = htmlBody,
+            context = EmailLogContext(
+                event = "email.user.welcome.sent",
+                entity = "user",
+                entityId = user.id,
+                metadata = mapOf("email" to user.email)
+            )
         )
     }
 
