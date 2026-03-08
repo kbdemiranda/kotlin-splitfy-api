@@ -156,18 +156,19 @@ There are now two compose flows in this repository:
 
 ### Development stack
 
-Use this when you want to run database, backend, and frontend locally with hot reload on the Angular app.
+Use this when you want to run backend and frontend locally with hot reload on the Angular app.
 
 Behavior:
 
-- starts PostgreSQL inside Docker
+- reads backend credentials from `.env`
 - builds backend locally from this repository
 - builds frontend locally from `../angular-splitfy-frontend` using `Dockerfile.dev`
 - enables `SPRING_PROFILES_ACTIVE=dev`
-- enables Hibernate schema auto-update for local bootstrap
+- does not create or update schema automatically
 
 Required `.env` values:
 
+- `DB_URL`
 - `JWT_SECRET`
 - `JWT_EXPIRATION_MS`
 - `MAIL_USERNAME`
@@ -187,7 +188,6 @@ Logs:
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
-docker compose logs -f db
 ```
 
 Stop:
@@ -201,7 +201,6 @@ Endpoints:
 - Frontend: `http://localhost:4242`
 - API: `http://localhost:9090`
 - Swagger: `http://localhost:9090/swagger-ui/index.html`
-- PostgreSQL: `localhost:35432`
 
 ### Production-style stack
 
@@ -213,6 +212,7 @@ Behavior:
 - builds frontend with the production `Dockerfile`
 - exposes backend directly on `http://localhost:8080`
 - does **not** enable development schema bootstrap
+- reads backend credentials from `.env`
 
 Start:
 
@@ -240,8 +240,9 @@ Endpoints:
 
 Important:
 
+- both compose files expect an already provisioned schema; if required tables do not exist, the application should fail on startup/runtime instead of creating them
 - `docker-compose.prod.yml` expects an already provisioned schema, because the app default config keeps `spring.jpa.hibernate.ddl-auto=none`
-- use `docker-compose.yml` for first-time local bootstrap and day-to-day development
+- use `docker-compose.yml` for day-to-day development with the Angular dev server
 
 ## Building and Publishing the Image
 
