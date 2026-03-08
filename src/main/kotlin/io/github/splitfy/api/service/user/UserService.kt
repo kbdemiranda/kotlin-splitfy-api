@@ -12,6 +12,7 @@ import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.service.profile.ProfileService
 import io.github.splitfy.api.web.user.dto.ProfileSummaryResponse
 import io.github.splitfy.api.web.user.dto.UserCreateRequest
+import io.github.splitfy.api.web.user.dto.UserDashboardEmailPreferenceRequest
 import io.github.splitfy.api.web.user.dto.UserResponse
 import io.github.splitfy.api.web.user.dto.UserUpdateRequest
 import org.springframework.data.domain.Page
@@ -86,9 +87,36 @@ class UserService(
         return toResponse(saved)
     }
 
+    fun updateDashboardEmailPreference(id: UUID, request: UserDashboardEmailPreferenceRequest): UserResponse {
+        val user = getActiveUser(id)
+
+        if (request.receivesDashboardEmail) {
+            if (!user.isEnabled) {
+                throw BadRequestApiException("User must be enabled to receive scheduled dashboard e-mail")
+            }
+
+            val currentRecipient = userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
+            if (currentRecipient != null && currentRecipient.id != user.id) {
+                if (!request.force) {
+                    throw ConflictApiException(
+                        "Another user is already configured as the scheduled dashboard e-mail recipient: " +
+                            "${currentRecipient.name} <${currentRecipient.email}>. Retry with force=true to replace it."
+                    )
+                }
+
+                currentRecipient.receivesDashboardEmail = false
+                userRepository.save(currentRecipient)
+            }
+        }
+
+        user.receivesDashboardEmail = request.receivesDashboardEmail
+        return toResponse(userRepository.save(user))
+    }
+
     fun softDelete(id: UUID) {
         val user = getActiveUser(id)
         user.isEnabled = false
+        user.receivesDashboardEmail = false
         user.deletedAt = LocalDateTime.now()
         userRepository.save(user)
     }
@@ -124,6 +152,7 @@ class UserService(
             email = user.email,
             profile = profileSummary,
             isEnabled = user.isEnabled,
+            receivesDashboardEmail = user.receivesDashboardEmail,
             createdAt = user.createdAt,
             updatedAt = user.updatedAt,
             deletedAt = user.deletedAt,

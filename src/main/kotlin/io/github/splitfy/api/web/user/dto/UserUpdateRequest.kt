@@ -21,12 +21,12 @@ data class UserUpdateRequest(
     @field:Schema(description = "User password", example = "MyUpdatedPass#123")
     val password: String? = null,
 
-    @field:Schema(description = "Profile ID to associate with the user")
+    @field:Schema(description = "Profile ID to associate with the user", example = "8f9d6d52-2f1b-4b1a-89fd-3121df7d0f33")
     val profileId: UUID? = null,
 
-    @field:Schema(description = "Profile name to associate when profileId is not informed")
+    @field:Schema(description = "Profile name to associate when profileId is not informed", example = "EDITOR")
     val profileName: ProfileName? = null,
 
-    @field:Schema(description = "Whether the user is enabled")
+    @field:Schema(description = "Whether the user is enabled", example = "true")
     val isEnabled: Boolean? = null,
 )

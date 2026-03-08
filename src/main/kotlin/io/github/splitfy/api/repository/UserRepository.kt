@@ -15,6 +15,8 @@ import java.util.UUID
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByIdAndDeletedAtIsNull(id: UUID): User?
 
+    fun findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue(): User?
+
     fun findByDeletedAtIsNull(pageable: Pageable): Page<User>
 
     fun findByDeletedAtIsNullAndNameContainingIgnoreCase(name: String, pageable: Pageable): Page<User>

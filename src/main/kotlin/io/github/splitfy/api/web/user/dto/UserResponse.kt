@@ -7,7 +7,7 @@ import java.util.UUID
 
 @Schema(description = "User response payload")
 data class UserResponse(
-    @Schema(description = "User ID")
+    @Schema(description = "User ID", example = "8f9d6d52-2f1b-4b1a-89fd-3121df7d0f33")
     val id: UUID,
     @Schema(description = "User full name", example = "John Doe")
     val name: String,
@@ -15,8 +15,10 @@ data class UserResponse(
     val email: String,
     @Schema(description = "Associated profile data")
     val profile: ProfileSummaryResponse?,
-    @Schema(description = "Whether the user is enabled")
+    @Schema(description = "Whether the user is enabled", example = "true")
     val isEnabled: Boolean,
+    @Schema(description = "Whether the user receives the scheduled dashboard e-mail", example = "false")
+    val receivesDashboardEmail: Boolean,
     @Schema(description = "Creation timestamp")
     val createdAt: LocalDateTime?,
     @Schema(description = "Last update timestamp")

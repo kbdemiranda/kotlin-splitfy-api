@@ -49,12 +49,6 @@ splitfy:
     retry:
       max-attempts: ${MAIL_RETRY_MAX_ATTEMPTS:3}
       backoff-ms: ${MAIL_RETRY_BACKOFF_MS:500}
-    schedules:
-      dashboard:
-        enabled: ${MAIL_SCHEDULE_DASHBOARD_ENABLED:false}
-        recipient: ${MAIL_SCHEDULE_DASHBOARD_RECIPIENT:}
-        cron: ${MAIL_SCHEDULE_DASHBOARD_CRON:0 0 9 * * *}
-        zone: ${MAIL_SCHEDULE_DASHBOARD_ZONE:America/Sao_Paulo}
   auth:
     reset-token-expiration-minutes: ${RESET_TOKEN_EXPIRATION_MINUTES:30}
   exchange:

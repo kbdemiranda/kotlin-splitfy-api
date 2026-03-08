@@ -1,5 +1,10 @@
 package io.github.splitfy.api.service.email
 
+import io.github.splitfy.api.domain.entity.EmailScheduleOccurrence
+import io.github.splitfy.api.domain.entity.EmailScheduleSetting
+import io.github.splitfy.api.domain.entity.User
+import io.github.splitfy.api.repository.EmailScheduleSettingRepository
+import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.dashboard.DashboardService
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
 import io.github.splitfy.api.web.dashboard.dto.DebtorSubscriberItem
@@ -12,24 +17,39 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
+import java.time.ZoneOffset
+import java.util.UUID
 
 class EmailSchedulingServiceTest {
 
     private val emailService: EmailService = mock()
     private val dashboardService: DashboardService = mock()
+    private val userRepository: UserRepository = mock()
+    private val emailScheduleSettingRepository: EmailScheduleSettingRepository = mock()
     private val templateService = EmailTemplateService()
 
     @Test
-    fun `sendDailyDashboardEmail sends dashboard summary when enabled and recipient is configured`() {
+    fun `sendDailyDashboardEmail sends dashboard summary when schedule matches and recipient is configured`() {
         whenever(dashboardService.getKpis(null)).thenReturn(sampleKpis())
+        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+            schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = true)
+        )
+        whenever(userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()).thenReturn(
+            activeRecipient("finance@splitfy.com")
+        )
 
         val service = EmailSchedulingService(
             emailService = emailService,
             emailTemplateService = templateService,
             dashboardService = dashboardService,
-            dashboardEmailEnabled = true,
-            dashboardEmailRecipient = "finance@splitfy.com"
+            userRepository = userRepository,
+            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
         service.sendDailyDashboardEmail()
@@ -43,35 +63,97 @@ class EmailSchedulingServiceTest {
     }
 
     @Test
-    fun `sendDailyDashboardEmail does nothing when disabled`() {
+    fun `sendDailyDashboardEmail does nothing when schedule is disabled`() {
+        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+            schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = false)
+        )
+
         val service = EmailSchedulingService(
             emailService = emailService,
             emailTemplateService = templateService,
             dashboardService = dashboardService,
-            dashboardEmailEnabled = false,
-            dashboardEmailRecipient = "finance@splitfy.com"
+            userRepository = userRepository,
+            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
         service.sendDailyDashboardEmail()
 
+        verify(userRepository, never()).findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
         verify(dashboardService, never()).getKpis(any())
         verify(emailService, never()).sendHtml(any(), any(), any(), any())
     }
 
     @Test
-    fun `sendDailyDashboardEmail does nothing when recipient is blank`() {
+    fun `sendDailyDashboardEmail does nothing when current time does not match configured slots`() {
+        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+            schedule(dayOfWeek = 1, time = LocalTime.of(11, 0), timezone = "America/Sao_Paulo", enabled = true)
+        )
+
         val service = EmailSchedulingService(
             emailService = emailService,
             emailTemplateService = templateService,
             dashboardService = dashboardService,
-            dashboardEmailEnabled = true,
-            dashboardEmailRecipient = "   "
+            userRepository = userRepository,
+            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
         service.sendDailyDashboardEmail()
 
+        verify(userRepository, never()).findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
         verify(dashboardService, never()).getKpis(any())
         verify(emailService, never()).sendHtml(any(), any(), any(), any())
+    }
+
+    @Test
+    fun `sendDailyDashboardEmail does nothing when no active recipient is configured`() {
+        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+            schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = true)
+        )
+
+        val service = EmailSchedulingService(
+            emailService = emailService,
+            emailTemplateService = templateService,
+            dashboardService = dashboardService,
+            userRepository = userRepository,
+            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
+        )
+
+        service.sendDailyDashboardEmail()
+
+        verify(userRepository).findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
+        verify(dashboardService, never()).getKpis(any())
+        verify(emailService, never()).sendHtml(any(), any(), any(), any())
+    }
+
+    private fun schedule(
+        dayOfWeek: Int,
+        time: LocalTime,
+        timezone: String,
+        enabled: Boolean,
+    ): EmailScheduleSetting {
+        val setting = EmailScheduleSetting(
+            id = 1L,
+            scheduleKey = "DASHBOARD_EMAIL",
+            description = "Dashboard",
+            isEnabled = enabled,
+            timezone = timezone,
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now(),
+        )
+        setting.occurrences = mutableListOf(
+            EmailScheduleOccurrence(
+                id = 1L,
+                emailScheduleSetting = setting,
+                dayOfWeek = dayOfWeek,
+                executionTime = time,
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now(),
+            )
+        )
+        return setting
     }
 
     private fun sampleKpis(): DashboardKpiResponse {
@@ -101,6 +183,19 @@ class EmailSchedulingServiceTest {
                     totalDebt = BigDecimal("12.41")
                 )
             )
+        )
+    }
+
+    private fun activeRecipient(email: String): User {
+        return User(
+            id = UUID.randomUUID(),
+            name = "Recipient",
+            email = email,
+            password = "secret",
+            isEnabled = true,
+            receivesDashboardEmail = true,
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now(),
         )
     }
 }

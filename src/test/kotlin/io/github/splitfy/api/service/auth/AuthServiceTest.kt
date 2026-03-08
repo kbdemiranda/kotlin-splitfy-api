@@ -69,7 +69,7 @@ class AuthServiceTest {
                 this.requestedIp == "127.0.0.1" &&
                 this.tokenHash.length == 64
         })
-        verify(emailService, times(1)).sendHtml(eq("user@example.com"), any(), any())
+        verify(emailService, times(1)).sendHtml(eq("user@example.com"), any(), any(), any())
         verify(userRepository, never()).save(any())
         verify(passwordEncoder, never()).encode(any())
     }
@@ -85,7 +85,7 @@ class AuthServiceTest {
         assertEquals("If the email is registered, reset instructions have been sent.", response.message)
         verify(passwordEncoder, never()).encode(any())
         verify(userRepository, never()).save(any())
-        verify(emailService, never()).sendHtml(any(), any(), any())
+        verify(emailService, never()).sendHtml(any(), any(), any(), any())
         verify(passwordResetTokenRepository, never()).save(any())
     }
 
@@ -98,7 +98,7 @@ class AuthServiceTest {
         assertEquals("If the email is registered, reset instructions have been sent.", response.message)
         verify(passwordEncoder, never()).encode(any())
         verify(userRepository, never()).save(any())
-        verify(emailService, never()).sendHtml(any(), any(), any())
+        verify(emailService, never()).sendHtml(any(), any(), any(), any())
         verify(passwordResetTokenRepository, never()).save(any())
     }
 

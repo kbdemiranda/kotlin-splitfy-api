@@ -1,13 +1,19 @@
 package io.github.splitfy.api.service.email
 
+import io.github.splitfy.api.domain.entity.EmailScheduleSetting
+import io.github.splitfy.api.repository.EmailScheduleSettingRepository
+import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.dashboard.DashboardService
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.Clock
+import java.time.DayOfWeek
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -17,27 +23,33 @@ class EmailSchedulingService(
     private val emailService: EmailService,
     private val emailTemplateService: EmailTemplateService,
     private val dashboardService: DashboardService,
-    @Value("\${splitfy.mail.schedules.dashboard.enabled:false}") private val dashboardEmailEnabled: Boolean,
-    @Value("\${splitfy.mail.schedules.dashboard.recipient:}") private val dashboardEmailRecipient: String,
+    private val userRepository: UserRepository,
+    private val emailScheduleSettingRepository: EmailScheduleSettingRepository,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
 
     private val log = LoggerFactory.getLogger(EmailSchedulingService::class.java)
     private val finalScale = 2
     private val rounding = RoundingMode.HALF_UP
 
-    @Scheduled(
-        cron = "\${splitfy.mail.schedules.dashboard.cron:0 0 9 * * *}",
-        zone = "\${splitfy.mail.schedules.dashboard.zone:America/Sao_Paulo}"
-    )
+    @Scheduled(cron = "0 * * * * *")
     fun sendDailyDashboardEmail() {
-        if (!dashboardEmailEnabled) {
-            log.debug("Dashboard scheduled e-mail dispatch is disabled")
+        val schedule = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
+        if (schedule == null) {
+            log.debug("Dashboard scheduled e-mail dispatch skipped because schedule {} is not configured", DASHBOARD_EMAIL_SCHEDULE_KEY)
+            return
+        }
+        if (!schedule.isEnabled) {
+            log.debug("Dashboard scheduled e-mail dispatch is disabled in database")
+            return
+        }
+        if (!shouldRunNow(schedule)) {
             return
         }
 
-        val recipient = dashboardEmailRecipient.trim()
-        if (recipient.isBlank()) {
-            log.warn("Dashboard scheduled e-mail dispatch skipped because no recipient was configured")
+        val recipient = userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()?.email?.trim()
+        if (recipient.isNullOrBlank()) {
+            log.warn("Dashboard scheduled e-mail dispatch skipped because no active user is configured as recipient")
             return
         }
 
@@ -52,6 +64,23 @@ class EmailSchedulingService(
         )
 
         log.info("Dashboard scheduled e-mail sent to {}", recipient)
+    }
+
+    internal fun shouldRunNow(schedule: EmailScheduleSetting, now: ZonedDateTime = nowInScheduleZone(schedule.timezone)): Boolean {
+        if (!schedule.isEnabled) {
+            return false
+        }
+
+        val currentDayOfWeek = now.dayOfWeek.toDatabaseValue()
+        val currentTime = now.toLocalTime().withSecond(0).withNano(0)
+        return schedule.occurrences.any { occurrence ->
+            occurrence.dayOfWeek == currentDayOfWeek &&
+                occurrence.executionTime.withSecond(0).withNano(0) == currentTime
+        }
+    }
+
+    private fun nowInScheduleZone(timezone: String): ZonedDateTime {
+        return ZonedDateTime.now(clock).withZoneSameInstant(ZoneId.of(timezone))
     }
 
     internal fun buildDashboardEmailHtml(kpis: DashboardKpiResponse): String {
@@ -154,6 +183,9 @@ class EmailSchedulingService(
     )
 
     companion object {
+        private const val DASHBOARD_EMAIL_SCHEDULE_KEY = "DASHBOARD_EMAIL"
         private val REFERENCE_MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM 'de' yyyy", Locale("pt", "BR"))
     }
 }
+
+private fun DayOfWeek.toDatabaseValue(): Int = value

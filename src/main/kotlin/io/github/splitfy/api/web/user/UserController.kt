@@ -2,6 +2,7 @@ package io.github.splitfy.api.web.user
 
 import io.github.splitfy.api.service.user.UserService
 import io.github.splitfy.api.web.user.dto.UserCreateRequest
+import io.github.splitfy.api.web.user.dto.UserDashboardEmailPreferenceRequest
 import io.github.splitfy.api.web.user.dto.UserResponse
 import io.github.splitfy.api.web.user.dto.UserUpdateRequest
 import io.swagger.v3.oas.annotations.Operation
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -33,7 +35,10 @@ class UserController(
     private val userService: UserService,
 ) {
 
-    @Operation(summary = "Create user", description = "Creates a new user")
+    @Operation(
+        summary = "Create user",
+        description = "Creates a new user."
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "201", description = "User created"),
@@ -47,7 +52,10 @@ class UserController(
         return ResponseEntity.created(URI.create("/users/${created.id}")).body(created)
     }
 
-    @Operation(summary = "List users", description = "Returns a paginated list of users")
+    @Operation(
+        summary = "List users",
+        description = "Returns a paginated list of users, including whether each user is selected to receive the scheduled dashboard e-mail."
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Users listed")
@@ -63,7 +71,10 @@ class UserController(
         return ResponseEntity.ok(userService.list(pageable, name))
     }
 
-    @Operation(summary = "Get user by ID", description = "Returns a user by its unique identifier")
+    @Operation(
+        summary = "Get user by ID",
+        description = "Returns a user by its unique identifier, including whether this user is selected to receive the scheduled dashboard e-mail."
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "User found"),
@@ -75,7 +86,10 @@ class UserController(
         return ResponseEntity.ok(userService.getById(id))
     }
 
-    @Operation(summary = "Update user", description = "Updates an existing user")
+    @Operation(
+        summary = "Update user",
+        description = "Updates an existing user."
+    )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "User updated"),
@@ -90,6 +104,26 @@ class UserController(
         @Valid @RequestBody request: UserUpdateRequest
     ): ResponseEntity<UserResponse> {
         return ResponseEntity.ok(userService.update(id, request))
+    }
+
+    @Operation(
+        summary = "Update dashboard e-mail recipient flag",
+        description = "Updates only the flag that defines whether the user receives the scheduled dashboard e-mail. If another active user is already selected, the API returns 409 unless `force=true` is informed."
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Dashboard e-mail preference updated"),
+            ApiResponse(responseCode = "400", description = "Invalid request"),
+            ApiResponse(responseCode = "404", description = "User not found"),
+            ApiResponse(responseCode = "409", description = "Another user is already configured as the dashboard e-mail recipient")
+        ]
+    )
+    @PatchMapping("/{id}/dashboard-email-preference")
+    fun updateDashboardEmailPreference(
+        @Parameter(description = "User ID") @PathVariable id: UUID,
+        @Valid @RequestBody request: UserDashboardEmailPreferenceRequest
+    ): ResponseEntity<UserResponse> {
+        return ResponseEntity.ok(userService.updateDashboardEmailPreference(id, request))
     }
 
     @Operation(summary = "Delete user", description = "Soft-deletes a user")

@@ -97,9 +97,12 @@ class SecurityConfig(
                 it.requestMatchers(HttpMethod.POST, "/profiles/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.PUT, "/profiles/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.DELETE, "/profiles/**").hasRole("ADMIN")
+                it.requestMatchers(HttpMethod.GET, "/email-schedules/**").hasRole("ADMIN")
+                it.requestMatchers(HttpMethod.PUT, "/email-schedules/**").hasRole("ADMIN")
 
                 it.requestMatchers(HttpMethod.POST, "/users").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/users/**").hasRole("ADMIN")
+                it.requestMatchers(HttpMethod.PATCH, "/users/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.PUT, "/users/**").hasRole("ADMIN")
                 it.requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("ADMIN")
 

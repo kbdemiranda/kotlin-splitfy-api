@@ -1,57 +1,49 @@
 package io.github.splitfy.api.domain.entity
 
+import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToMany
 import jakarta.persistence.PrePersist
 import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
-import java.util.UUID
 
 @Entity
 @Table(
-    name = "users",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["email"])]
+    name = "email_schedule_settings",
+    uniqueConstraints = [UniqueConstraint(columnNames = ["schedule_key"])]
 )
-data class User(
+data class EmailScheduleSetting(
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    var id: UUID? = null,
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    var id: Long? = null,
 
-    @Column(name = "name", nullable = false)
-    var name: String,
+    @Column(name = "schedule_key", nullable = false, unique = true, length = 100)
+    var scheduleKey: String,
 
-    @Column(name = "email", nullable = false, unique = true)
-    var email: String,
-
-    @Column(name = "password", nullable = false)
-    var password: String,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id")
-    var profile: Profile? = null,
+    @Column(name = "description")
+    var description: String? = null,
 
     @Column(name = "is_enabled", nullable = false)
     var isEnabled: Boolean = true,
 
-    @Column(name = "receives_dashboard_email", nullable = false)
-    var receivesDashboardEmail: Boolean = false,
+    @Column(name = "timezone", nullable = false, length = 64)
+    var timezone: String = "America/Sao_Paulo",
+
+    @OneToMany(mappedBy = "emailScheduleSetting", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
+    var occurrences: MutableList<EmailScheduleOccurrence> = mutableListOf(),
 
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: LocalDateTime? = null,
 
     @Column(name = "updated_at")
     var updatedAt: LocalDateTime? = null,
-
-    @Column(name = "deleted_at")
-    var deletedAt: LocalDateTime? = null,
 ) {
 
     @PrePersist

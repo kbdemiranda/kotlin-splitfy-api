@@ -2,7 +2,6 @@ package io.github.splitfy.api.domain.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -13,45 +12,33 @@ import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
-import java.util.UUID
+import java.time.LocalTime
 
 @Entity
 @Table(
-    name = "users",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["email"])]
+    name = "email_schedule_occurrences",
+    uniqueConstraints = [UniqueConstraint(columnNames = ["email_schedule_setting_id", "day_of_week", "execution_time"])]
 )
-data class User(
+data class EmailScheduleOccurrence(
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    var id: UUID? = null,
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    var id: Long? = null,
 
-    @Column(name = "name", nullable = false)
-    var name: String,
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "email_schedule_setting_id", nullable = false)
+    var emailScheduleSetting: EmailScheduleSetting,
 
-    @Column(name = "email", nullable = false, unique = true)
-    var email: String,
+    @Column(name = "day_of_week", nullable = false)
+    var dayOfWeek: Int,
 
-    @Column(name = "password", nullable = false)
-    var password: String,
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id")
-    var profile: Profile? = null,
-
-    @Column(name = "is_enabled", nullable = false)
-    var isEnabled: Boolean = true,
-
-    @Column(name = "receives_dashboard_email", nullable = false)
-    var receivesDashboardEmail: Boolean = false,
+    @Column(name = "execution_time", nullable = false)
+    var executionTime: LocalTime,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: LocalDateTime? = null,
 
     @Column(name = "updated_at")
     var updatedAt: LocalDateTime? = null,
-
-    @Column(name = "deleted_at")
-    var deletedAt: LocalDateTime? = null,
 ) {
 
     @PrePersist
