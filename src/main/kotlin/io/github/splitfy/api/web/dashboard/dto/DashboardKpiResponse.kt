@@ -14,11 +14,11 @@ data class DashboardKpiResponse(
     val totalDue: BigDecimal,
     @Schema(description = "Total amount paid for the period", example = "150.25")
     val totalPaid: BigDecimal,
-    @Schema(description = "Total amount pending approval", example = "30.00")
+    @Schema(description = "Total outstanding amount for the period", example = "30.00")
     val totalPending: BigDecimal,
-    @Schema(description = "Total unpaid amount", example = "20.25")
+    @Schema(description = "Deprecated: kept for compatibility and returned as zero", example = "0.00")
     val totalUnpaid: BigDecimal,
-    @Schema(description = "Delinquency rate percentage", example = "10.10")
+    @Schema(description = "Outstanding balance percentage over total due", example = "10.10")
     val delinquencyRate: BigDecimal,
     @Schema(description = "Pending amount grouped by platform")
     val pendingByPlatform: List<PendingByPlatformItem>,

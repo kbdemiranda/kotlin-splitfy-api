@@ -36,34 +36,48 @@
 
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">
                   <tr>
-                    <td class="metric-column" valign="top" width="50%" style="width:50%;padding:0 8px 16px 0;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                    <td class="metric-column" valign="top" width="100%" style="width:100%;padding:0 0 16px 0;">
+                      <table
+                        role="presentation"
+                        width="100%"
+                        cellspacing="0"
+                        cellpadding="0"
+                        th:style="${totalPendingHighlight} ? 'background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid #fdba74;border-radius:16px;box-shadow:0 10px 24px rgba(249,115,22,0.10);' : 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;'"
+                        style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;"
+                      >
                         <tr>
-                          <td style="padding:16px 18px;">
-                            <p style="margin:0;font-size:14px;color:#475569;">Total devido</p>
-                            <p style="margin:6px 0 0;font-size:26px;line-height:30px;color:#0f172a;font-weight:700;" th:text="${totalDue}">R$ 0.00</p>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                    <td class="metric-column" valign="top" width="50%" style="width:50%;padding:0 0 16px 8px;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
-                        <tr>
-                          <td style="padding:16px 18px;">
-                            <p style="margin:0;font-size:14px;color:#475569;">Total pago</p>
-                            <p style="margin:6px 0 0;font-size:26px;line-height:30px;color:#0f172a;font-weight:700;" th:text="${totalPaid}">R$ 0.00</p>
+                          <td style="padding:22px 24px;">
+                            <p
+                              th:style="${totalPendingHighlight} ? 'margin:0;font-size:13px;letter-spacing:.8px;text-transform:uppercase;color:#c2410c;font-weight:700;' : 'margin:0;font-size:14px;color:#475569;'"
+                              style="margin:0;font-size:14px;color:#475569;"
+                            >
+                              Total pendente
+                            </p>
+                            <p
+                              th:style="${totalPendingHighlight} ? 'margin:10px 0 0;font-size:38px;line-height:42px;color:#7c2d12;font-weight:700;' : 'margin:6px 0 0;font-size:26px;line-height:30px;color:#0f172a;font-weight:700;'"
+                              style="margin:6px 0 0;font-size:26px;line-height:30px;color:#0f172a;font-weight:700;"
+                              th:text="${totalPending}"
+                            >
+                              R$ 0.00
+                            </p>
+                            <p
+                              th:if="${totalPendingHighlight}"
+                              style="margin:10px 0 0;font-size:14px;line-height:20px;color:#9a3412;"
+                            >
+                              Valor consolidado de tudo que segue em aberto nesta competencia.
+                            </p>
                           </td>
                         </tr>
                       </table>
                     </td>
                   </tr>
                   <tr>
-                    <td class="metric-column" valign="top" width="50%" style="width:50%;padding:0 8px 0 0;">
+                    <td class="metric-column" valign="top" width="50%" style="width:50%;padding:0 8px 16px 0;">
                       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
                         <tr>
                           <td style="padding:16px 18px;">
-                            <p style="margin:0;font-size:14px;color:#475569;">Total pendente</p>
-                            <p style="margin:6px 0 0;font-size:26px;line-height:30px;color:#0f172a;font-weight:700;" th:text="${totalPending}">R$ 0.00</p>
+                            <p style="margin:0;font-size:14px;color:#475569;">Total pago</p>
+                            <p style="margin:6px 0 0;font-size:26px;line-height:30px;color:#0f172a;font-weight:700;" th:text="${totalPaid}">R$ 0.00</p>
                           </td>
                         </tr>
                       </table>
@@ -99,16 +113,6 @@
                             <strong th:text="${item.amount}" style="color:#0f172a;">R$ 0.00</strong>
                             <span th:text="' (' + ${item.percentage} + ')'"> (0.00%)</span>
                           </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:14px 18px;background:#fcfcfd;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                        <tr>
-                          <td style="font-size:14px;line-height:20px;color:#475569;">Total nao pago sem confirmacao</td>
-                          <td align="right" style="font-size:15px;line-height:22px;color:#0f172a;font-weight:700;" th:text="${totalUnpaid}">R$ 0.00</td>
                         </tr>
                       </table>
                     </td>
@@ -158,14 +162,12 @@
                           <th align="left" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;">Nome</th>
                           <th align="left" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;">E-mail</th>
                           <th align="right" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;">Pendente</th>
-                          <th align="right" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;">Nao pago</th>
                           <th align="right" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;">Divida total</th>
                         </tr>
                         <tr th:each="debtor : ${debtors}">
                           <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#1f2937;" th:text="${debtor.subscriberName}">Nome</td>
                           <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#334155;" th:text="${debtor.subscriberEmail}">email@exemplo.com</td>
                           <td align="right" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#334155;" th:text="${debtor.pendingAmount}">R$ 0.00</td>
-                          <td align="right" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#334155;" th:text="${debtor.unpaidAmount}">R$ 0.00</td>
                           <td align="right" style="padding:12px 16px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;font-weight:700;" th:text="${debtor.totalDebt}">R$ 0.00</td>
                         </tr>
                       </table>

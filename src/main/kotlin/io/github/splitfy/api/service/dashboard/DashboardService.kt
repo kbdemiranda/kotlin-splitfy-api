@@ -89,9 +89,12 @@ class DashboardService(
             return emptyResponse(refMonth)
         }
 
-        val confirmationsByKey = paymentConfirmationRepository
+        val confirmations = paymentConfirmationRepository
             .findByReferenceMonthAndDeletedAtIsNull(refMonth)
+        val confirmationsByKey = confirmations
             .associateBy { AssociationKey(it.subscriber.id!!, it.platform.id!!) }
+        val confirmationsByEmailAndPlatform = confirmations
+            .groupBy { EmailPlatformKey(it.subscriber.email.trim().lowercase(), it.platform.id!!) }
 
         var totalDue = BigDecimal.ZERO
         var totalPaid = BigDecimal.ZERO
@@ -100,37 +103,30 @@ class DashboardService(
         val debtorsAccumulator = mutableMapOf<Long, DebtorAccumulator>()
 
         dueShares.forEach { (key, dueShare) ->
+            val confirmation = confirmationsByKey[key]
+                ?: confirmationsByEmailAndPlatform[
+                    EmailPlatformKey(
+                        subscriberEmail = dueShare.subscriberEmail.trim().lowercase(),
+                        platformId = dueShare.platformId
+                    )
+                ]?.firstOrNull { it.status == PaymentConfirmationStatus.PENDING }
             totalDue = totalDue.add(dueShare.userShare)
-            when (confirmationsByKey[key]?.status) {
+            when (confirmation?.status) {
                 PaymentConfirmationStatus.CONFIRMED -> {
                     totalPaid = totalPaid.add(dueShare.userShare)
                 }
-                PaymentConfirmationStatus.PENDING -> {
-                    totalPending = totalPending.add(dueShare.userShare)
-                    accumulateDebtor(
-                        debtorsAccumulator = debtorsAccumulator,
-                        dueShare = dueShare,
-                        pendingIncrement = dueShare.userShare,
-                        unpaidIncrement = BigDecimal.ZERO
-                    )
-                    val current = pendingByPlatformAccumulator[dueShare.platformId]
-                    if (current == null) {
-                        pendingByPlatformAccumulator[dueShare.platformId] = PendingAccumulator(
-                            platformName = dueShare.platformName,
-                            count = 1,
-                            amount = dueShare.userShare
-                        )
-                    } else {
-                        current.count += 1
-                        current.amount = current.amount.add(dueShare.userShare)
-                    }
-                }
+                PaymentConfirmationStatus.PENDING -> registerPendingAmount(
+                    totalPending = totalPending,
+                    debtorsAccumulator = debtorsAccumulator,
+                    pendingByPlatformAccumulator = pendingByPlatformAccumulator,
+                    dueShare = dueShare
+                ).also { totalPending = it }
                 else -> {
-                    accumulateDebtor(
+                    totalPending = registerPendingAmount(
+                        totalPending = totalPending,
                         debtorsAccumulator = debtorsAccumulator,
-                        dueShare = dueShare,
-                        pendingIncrement = BigDecimal.ZERO,
-                        unpaidIncrement = dueShare.userShare
+                        pendingByPlatformAccumulator = pendingByPlatformAccumulator,
+                        dueShare = dueShare
                     )
                 }
             }
@@ -139,15 +135,12 @@ class DashboardService(
         val scaledTotalDue = totalDue.setScale(finalScale, rounding)
         val scaledTotalPaid = totalPaid.setScale(finalScale, rounding)
         val scaledTotalPending = totalPending.setScale(finalScale, rounding)
-        val totalUnpaid = scaledTotalDue
-            .subtract(scaledTotalPaid)
-            .subtract(scaledTotalPending)
-            .setScale(finalScale, rounding)
+        val totalUnpaid = BigDecimal.ZERO.setScale(finalScale, rounding)
 
         val delinquencyRate = if (scaledTotalDue.compareTo(BigDecimal.ZERO) == 0) {
             BigDecimal.ZERO.setScale(finalScale, rounding)
         } else {
-            totalUnpaid
+            scaledTotalPending
                 .divide(scaledTotalDue, intermediateScale, rounding)
                 .multiply(BigDecimal("100"))
                 .setScale(finalScale, rounding)
@@ -167,7 +160,7 @@ class DashboardService(
         val debtors = debtorsAccumulator.values
             .map { acc ->
                 val pendingAmount = acc.pendingAmount.setScale(finalScale, rounding)
-                val unpaidAmount = acc.unpaidAmount.setScale(finalScale, rounding)
+                val unpaidAmount = BigDecimal.ZERO.setScale(finalScale, rounding)
                 DebtorSubscriberItem(
                     subscriberId = acc.subscriberId,
                     subscriberName = acc.subscriberName,
@@ -258,8 +251,39 @@ class DashboardService(
         }
     }
 
+    private fun registerPendingAmount(
+        totalPending: BigDecimal,
+        debtorsAccumulator: MutableMap<Long, DebtorAccumulator>,
+        pendingByPlatformAccumulator: MutableMap<Long, PendingAccumulator>,
+        dueShare: DueShare,
+    ): BigDecimal {
+        accumulateDebtor(
+            debtorsAccumulator = debtorsAccumulator,
+            dueShare = dueShare,
+            pendingIncrement = dueShare.userShare,
+            unpaidIncrement = BigDecimal.ZERO
+        )
+        val current = pendingByPlatformAccumulator[dueShare.platformId]
+        if (current == null) {
+            pendingByPlatformAccumulator[dueShare.platformId] = PendingAccumulator(
+                platformName = dueShare.platformName,
+                count = 1,
+                amount = dueShare.userShare
+            )
+        } else {
+            current.count += 1
+            current.amount = current.amount.add(dueShare.userShare)
+        }
+        return totalPending.add(dueShare.userShare)
+    }
+
     private data class AssociationKey(
         val subscriberId: Long,
+        val platformId: Long,
+    )
+
+    private data class EmailPlatformKey(
+        val subscriberEmail: String,
         val platformId: Long,
     )
 

@@ -41,7 +41,7 @@ class DashboardServiceTest {
     }
 
     @Test
-    fun `getKpis aggregates due paid pending and unpaid with pending by platform`() {
+    fun `getKpis aggregates due paid and consolidates all unpaid balances into pending`() {
         val refMonth = YearMonth.of(2026, 1)
         val subscriber1 = subscriber(1L, "a@example.com")
         val subscriber2 = subscriber(2L, "b@example.com")
@@ -125,18 +125,20 @@ class DashboardServiceTest {
 
         assertEquals(BigDecimal("75.84"), response.totalDue)
         assertEquals(BigDecimal("5.00"), response.totalPaid)
-        assertEquals(BigDecimal("30.84"), response.totalPending)
-        assertEquals(BigDecimal("40.00"), response.totalUnpaid)
-        assertEquals(BigDecimal("52.74"), response.delinquencyRate)
-        assertEquals(2, response.pendingByPlatform.size)
-        assertEquals(30L, response.pendingByPlatform[0].platformId)
-        assertEquals(BigDecimal("25.84"), response.pendingByPlatform[0].pendingAmount)
-        assertEquals(10L, response.pendingByPlatform[1].platformId)
-        assertEquals(BigDecimal("5.00"), response.pendingByPlatform[1].pendingAmount)
+        assertEquals(BigDecimal("70.84"), response.totalPending)
+        assertEquals(BigDecimal("0.00"), response.totalUnpaid)
+        assertEquals(BigDecimal("93.41"), response.delinquencyRate)
+        assertEquals(3, response.pendingByPlatform.size)
+        assertEquals(20L, response.pendingByPlatform[0].platformId)
+        assertEquals(BigDecimal("40.00"), response.pendingByPlatform[0].pendingAmount)
+        assertEquals(30L, response.pendingByPlatform[1].platformId)
+        assertEquals(BigDecimal("25.84"), response.pendingByPlatform[1].pendingAmount)
+        assertEquals(10L, response.pendingByPlatform[2].platformId)
+        assertEquals(BigDecimal("5.00"), response.pendingByPlatform[2].pendingAmount)
         assertEquals(3, response.debtors.size)
         assertEquals(3L, response.debtors[0].subscriberId)
-        assertEquals(BigDecimal("0.00"), response.debtors[0].pendingAmount)
-        assertEquals(BigDecimal("40.00"), response.debtors[0].unpaidAmount)
+        assertEquals(BigDecimal("40.00"), response.debtors[0].pendingAmount)
+        assertEquals(BigDecimal("0.00"), response.debtors[0].unpaidAmount)
         assertEquals(BigDecimal("40.00"), response.debtors[0].totalDebt)
         assertEquals(4L, response.debtors[1].subscriberId)
         assertEquals(BigDecimal("25.84"), response.debtors[1].pendingAmount)
@@ -161,6 +163,63 @@ class DashboardServiceTest {
         assertEquals(BigDecimal("0.00"), response.delinquencyRate)
         assertEquals(0, response.pendingByPlatform.size)
         assertEquals(0, response.debtors.size)
+    }
+
+    @Test
+    fun `getKpis treats dependent pending payment with same email as pending in dashboard`() {
+        val refMonth = YearMonth.of(2026, 3)
+        val holder = subscriber(1L, "family@example.com")
+        val dependent = Subscriber(
+            id = 2L,
+            subscriberToken = UUID.randomUUID(),
+            name = "Dependent",
+            email = "family@example.com",
+            createdAt = LocalDateTime.now(),
+        )
+        val platform = platform(
+            id = 10L,
+            name = "Netflix",
+            price = BigDecimal("20.00"),
+            currency = Currency.BRL,
+            billingCycle = BillingCycle.MONTHLY,
+            billingDate = null
+        )
+
+        whenever(subscriberPlatformRepository.findAllActiveWithSubscriberAndPlatform()).thenReturn(
+            listOf(
+                assoc(1L, holder, platform),
+                assoc(2L, dependent, platform),
+            )
+        )
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(10L))).thenReturn(
+            listOf(count(platformId = 10L, count = 2L))
+        )
+        whenever(paymentConfirmationRepository.findByReferenceMonthAndDeletedAtIsNull(refMonth)).thenReturn(
+            listOf(
+                confirmation(
+                    id = 1L,
+                    subscriber = holder,
+                    platform = platform,
+                    referenceMonth = refMonth,
+                    status = PaymentConfirmationStatus.PENDING
+                )
+            )
+        )
+
+        val response = service.getKpis(refMonth)
+
+        assertEquals(BigDecimal("20.00"), response.totalDue)
+        assertEquals(BigDecimal("0.00"), response.totalPaid)
+        assertEquals(BigDecimal("20.00"), response.totalPending)
+        assertEquals(BigDecimal("0.00"), response.totalUnpaid)
+        assertEquals(BigDecimal("100.00"), response.delinquencyRate)
+        assertEquals(1, response.pendingByPlatform.size)
+        assertEquals(BigDecimal("20.00"), response.pendingByPlatform[0].pendingAmount)
+        assertEquals(2, response.debtors.size)
+        assertEquals(BigDecimal("10.00"), response.debtors[0].pendingAmount)
+        assertEquals(BigDecimal("0.00"), response.debtors[0].unpaidAmount)
+        assertEquals(BigDecimal("10.00"), response.debtors[1].pendingAmount)
+        assertEquals(BigDecimal("0.00"), response.debtors[1].unpaidAmount)
     }
 
     private fun subscriber(id: Long, email: String): Subscriber {

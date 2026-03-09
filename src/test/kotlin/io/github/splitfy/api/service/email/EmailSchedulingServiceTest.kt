@@ -162,15 +162,15 @@ class EmailSchedulingServiceTest {
             currency = "BRL",
             totalDue = BigDecimal("138.67"),
             totalPaid = BigDecimal("126.26"),
-            totalPending = BigDecimal("0.00"),
-            totalUnpaid = BigDecimal("12.41"),
+            totalPending = BigDecimal("12.41"),
+            totalUnpaid = BigDecimal("0.00"),
             delinquencyRate = BigDecimal("8.95"),
             pendingByPlatform = listOf(
                 PendingByPlatformItem(
                     platformId = 10L,
                     platformName = "Netflix",
                     pendingCount = 1,
-                    pendingAmount = BigDecimal("0.00")
+                    pendingAmount = BigDecimal("12.41")
                 )
             ),
             debtors = listOf(
@@ -178,8 +178,8 @@ class EmailSchedulingServiceTest {
                     subscriberId = 1L,
                     subscriberName = "Eduardo Henrique",
                     subscriberEmail = "eduardoehp@outlook.com",
-                    pendingAmount = BigDecimal("0.00"),
-                    unpaidAmount = BigDecimal("12.41"),
+                    pendingAmount = BigDecimal("12.41"),
+                    unpaidAmount = BigDecimal("0.00"),
                     totalDebt = BigDecimal("12.41")
                 )
             )

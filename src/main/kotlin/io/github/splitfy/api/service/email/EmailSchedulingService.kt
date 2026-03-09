@@ -103,12 +103,6 @@ class EmailSchedulingService(
                 amount = formatCurrency(kpis.totalPending),
                 percentage = calculatePercentage(kpis.totalPending, totalDue),
                 accentColor = "#f59e0b"
-            ),
-            StatusSummaryItem(
-                label = "Nao pago",
-                amount = formatCurrency(kpis.totalUnpaid),
-                percentage = calculatePercentage(kpis.totalUnpaid, totalDue),
-                accentColor = "#ef4444"
             )
         )
 
@@ -117,10 +111,9 @@ class EmailSchedulingService(
             variables = mapOf(
                 "preheader" to "Resumo do dashboard Splitfy - ${formatReferenceMonth(kpis.referenceMonth)}",
                 "referenceMonthLabel" to formatReferenceMonth(kpis.referenceMonth),
-                "totalDue" to formatCurrency(kpis.totalDue),
+                "totalPendingHighlight" to (kpis.totalPending > BigDecimal.ZERO),
                 "totalPaid" to formatCurrency(kpis.totalPaid),
                 "totalPending" to formatCurrency(kpis.totalPending),
-                "totalUnpaid" to formatCurrency(kpis.totalUnpaid),
                 "delinquencyRate" to formatPercentage(kpis.delinquencyRate),
                 "statusItems" to statusItems,
                 "pendingByPlatform" to kpis.pendingByPlatform.map {
@@ -135,7 +128,6 @@ class EmailSchedulingService(
                         subscriberName = it.subscriberName,
                         subscriberEmail = it.subscriberEmail,
                         pendingAmount = formatCurrency(it.pendingAmount),
-                        unpaidAmount = formatCurrency(it.unpaidAmount),
                         totalDebt = formatCurrency(it.totalDebt)
                     )
                 }
@@ -184,7 +176,6 @@ class EmailSchedulingService(
         val subscriberName: String,
         val subscriberEmail: String,
         val pendingAmount: String,
-        val unpaidAmount: String,
         val totalDebt: String,
     )
 
