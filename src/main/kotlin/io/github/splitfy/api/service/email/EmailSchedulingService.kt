@@ -1,7 +1,6 @@
 package io.github.splitfy.api.service.email
 
 import io.github.splitfy.api.domain.entity.EmailScheduleSetting
-import io.github.splitfy.api.repository.EmailScheduleSettingRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.dashboard.DashboardService
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
@@ -24,7 +23,7 @@ class EmailSchedulingService(
     private val emailTemplateService: EmailTemplateService,
     private val dashboardService: DashboardService,
     private val userRepository: UserRepository,
-    private val emailScheduleSettingRepository: EmailScheduleSettingRepository,
+    private val emailScheduleCacheService: EmailScheduleCacheService,
     private val clock: Clock = Clock.systemUTC(),
 ) {
 
@@ -34,7 +33,7 @@ class EmailSchedulingService(
 
     @Scheduled(cron = "0 * * * * *")
     fun sendDailyDashboardEmail() {
-        val schedule = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
+        val schedule = emailScheduleCacheService.getSchedule(DASHBOARD_EMAIL_SCHEDULE_KEY)
         if (schedule == null) {
             log.debug("Dashboard scheduled e-mail dispatch skipped because schedule {} is not configured", DASHBOARD_EMAIL_SCHEDULE_KEY)
             return

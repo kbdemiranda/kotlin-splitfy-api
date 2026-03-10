@@ -31,6 +31,10 @@ splitfy:
   jwt:
     secret: test-secret-which-needs-at-least-32-bytes-123456
     expiration-ms: 3600000
+  email:
+    schedule:
+      cache:
+        max-age: 24h
   admin:
     email: admin@test.local
     password: Admin@Test123

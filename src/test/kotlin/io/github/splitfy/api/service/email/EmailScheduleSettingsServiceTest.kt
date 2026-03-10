@@ -23,8 +23,9 @@ class EmailScheduleSettingsServiceTest {
 
     private val repository: EmailScheduleSettingRepository = mock()
     private val occurrenceRepository: EmailScheduleOccurrenceRepository = mock()
+    private val cacheService: EmailScheduleCacheService = mock()
 
-    private val service = EmailScheduleSettingsService(repository, occurrenceRepository)
+    private val service = EmailScheduleSettingsService(repository, occurrenceRepository, cacheService)
 
     @Test
     fun `getDashboardSchedule returns default disabled config when setting is missing`() {
@@ -93,6 +94,7 @@ class EmailScheduleSettingsServiceTest {
         assertEquals(LocalTime.of(12, 0), response.occurrences[1].executionTime)
         verify(occurrenceRepository).deleteByEmailScheduleSettingId(1L)
         verify(repository).saveAndFlush(any())
+        verify(cacheService).putSchedule(any())
         verify(occurrenceRepository).saveAllAndFlush(
             argThat<MutableIterable<EmailScheduleOccurrence>> {
                 this.count() == 2

@@ -3,7 +3,6 @@ package io.github.splitfy.api.service.email
 import io.github.splitfy.api.domain.entity.EmailScheduleOccurrence
 import io.github.splitfy.api.domain.entity.EmailScheduleSetting
 import io.github.splitfy.api.domain.entity.User
-import io.github.splitfy.api.repository.EmailScheduleSettingRepository
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.dashboard.DashboardService
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
@@ -30,13 +29,13 @@ class EmailSchedulingServiceTest {
     private val emailService: EmailService = mock()
     private val dashboardService: DashboardService = mock()
     private val userRepository: UserRepository = mock()
-    private val emailScheduleSettingRepository: EmailScheduleSettingRepository = mock()
+    private val emailScheduleCacheService: EmailScheduleCacheService = mock()
     private val templateService = EmailTemplateService()
 
     @Test
     fun `sendDailyDashboardEmail sends dashboard summary when schedule matches and recipient is configured`() {
         whenever(dashboardService.getKpis(null)).thenReturn(sampleKpis())
-        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = true)
         )
         whenever(userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()).thenReturn(
@@ -48,7 +47,7 @@ class EmailSchedulingServiceTest {
             emailTemplateService = templateService,
             dashboardService = dashboardService,
             userRepository = userRepository,
-            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            emailScheduleCacheService = emailScheduleCacheService,
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
@@ -64,7 +63,7 @@ class EmailSchedulingServiceTest {
 
     @Test
     fun `sendDailyDashboardEmail does nothing when schedule is disabled`() {
-        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = false)
         )
 
@@ -73,7 +72,7 @@ class EmailSchedulingServiceTest {
             emailTemplateService = templateService,
             dashboardService = dashboardService,
             userRepository = userRepository,
-            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            emailScheduleCacheService = emailScheduleCacheService,
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
@@ -86,7 +85,7 @@ class EmailSchedulingServiceTest {
 
     @Test
     fun `sendDailyDashboardEmail does nothing when current time does not match configured slots`() {
-        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(11, 0), timezone = "America/Sao_Paulo", enabled = true)
         )
 
@@ -95,7 +94,7 @@ class EmailSchedulingServiceTest {
             emailTemplateService = templateService,
             dashboardService = dashboardService,
             userRepository = userRepository,
-            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            emailScheduleCacheService = emailScheduleCacheService,
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
@@ -108,7 +107,7 @@ class EmailSchedulingServiceTest {
 
     @Test
     fun `sendDailyDashboardEmail does nothing when no active recipient is configured`() {
-        whenever(emailScheduleSettingRepository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(
+        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = true)
         )
 
@@ -117,7 +116,7 @@ class EmailSchedulingServiceTest {
             emailTemplateService = templateService,
             dashboardService = dashboardService,
             userRepository = userRepository,
-            emailScheduleSettingRepository = emailScheduleSettingRepository,
+            emailScheduleCacheService = emailScheduleCacheService,
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 

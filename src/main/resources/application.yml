@@ -70,6 +70,10 @@ splitfy:
     cache:
       ttl-seconds: ${EXCHANGE_CACHE_TTL_SECONDS:300}
       max-stale-seconds: ${EXCHANGE_CACHE_MAX_STALE_SECONDS:21600}
+  email:
+    schedule:
+      cache:
+        max-age: ${EMAIL_SCHEDULE_CACHE_MAX_AGE:24h}
   security:
     rate-limit:
       login-by-ip-per-minute: ${AUTH_RATE_LIMIT_LOGIN_IP_PER_MINUTE:30}
