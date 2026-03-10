@@ -71,7 +71,7 @@ class UserServiceTest {
     }
 
     @Test
-    fun `create ignores privileged profile sent by client and always uses viewer`() {
+    fun `create always uses viewer profile`() {
         val viewerProfile = sampleProfile()
 
         whenever(userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("new@splitfy.com")).thenReturn(false)
@@ -90,12 +90,10 @@ class UserServiceTest {
                 name = "New User",
                 email = "new@splitfy.com",
                 password = "password123",
-                profileName = ProfileName.ADMIN,
             )
         )
 
         verify(profileService, times(1)).getProfileByName(ProfileName.VIEWER)
-        verify(profileService, never()).getProfileByName(ProfileName.ADMIN)
         verify(userRepository).save(argThat<User> { profile?.name == ProfileName.VIEWER })
     }
 

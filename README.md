@@ -331,7 +331,7 @@ When the app is running:
 
 ### Users & Profiles
 
-- `POST /users` (public user creation)
+- `POST /users` (public user creation, always associates profile `VIEWER`)
 - `GET /users`, `GET /users/{id}`
 - `PUT /users/{id}`, `DELETE /users/{id}`
 - `PUT /users/{id}/profile/{profileId}`
@@ -366,6 +366,17 @@ When the app is running:
 - `Currency`: `BRL`, `USD`, `EUR`
 - `BillingCycle`: `MONTHLY`, `SEMI_ANNUAL`, `ANNUAL`
 - `PaymentConfirmationStatus`: `PENDING`, `CONFIRMED`
+
+Create user payload example:
+
+```json
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "password": "MySecurePass#123",
+  "enabled": true
+}
+```
 
 ## Testing
 
