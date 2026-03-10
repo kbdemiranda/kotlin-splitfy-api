@@ -84,7 +84,7 @@ class GlobalExceptionHandler {
         return buildResponse(
             status = HttpStatus.INTERNAL_SERVER_ERROR,
             code = "DB_ERROR",
-            message = ex.mostSpecificCause?.message ?: ex.message ?: "Database error",
+            message = "Database operation failed",
             request = request,
             ex = ex
         )
@@ -95,7 +95,7 @@ class GlobalExceptionHandler {
         return buildResponse(
             status = HttpStatus.CONFLICT,
             code = "CONFLICT",
-            message = ex.mostSpecificCause?.message ?: ex.message ?: "Conflict",
+            message = "Request could not be completed because it conflicts with existing data",
             request = request,
             ex = ex,
         )
@@ -143,7 +143,7 @@ class GlobalExceptionHandler {
         return buildResponse(
             status = HttpStatus.INTERNAL_SERVER_ERROR,
             code = "INTERNAL_SERVER_ERROR",
-            message = ex.message ?: "Unexpected internal error",
+            message = "Unexpected internal error",
             request = request,
             ex = ex
         )
