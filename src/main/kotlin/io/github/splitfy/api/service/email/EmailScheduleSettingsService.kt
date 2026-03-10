@@ -23,11 +23,11 @@ class EmailScheduleSettingsService(
 ) {
     private val log = LoggerFactory.getLogger(EmailScheduleSettingsService::class.java)
 
-    fun getDashboardSchedule(): EmailScheduleSettingsResponse {
-        val setting = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
+    fun getKpiSummarySchedule(): EmailScheduleSettingsResponse {
+        val setting = findExistingKpiSummarySchedule()
             ?: EmailScheduleSetting(
-                scheduleKey = DASHBOARD_EMAIL_SCHEDULE_KEY,
-                description = DASHBOARD_EMAIL_SCHEDULE_DESCRIPTION,
+                scheduleKey = KPI_SUMMARY_EMAIL_SCHEDULE_KEY,
+                description = KPI_SUMMARY_EMAIL_SCHEDULE_DESCRIPTION,
                 isEnabled = false,
                 timezone = DEFAULT_TIMEZONE,
             )
@@ -35,17 +35,21 @@ class EmailScheduleSettingsService(
         return toResponse(setting)
     }
 
-    fun updateDashboardSchedule(request: EmailScheduleSettingsRequest): EmailScheduleSettingsResponse {
+    fun updateKpiSummarySchedule(request: EmailScheduleSettingsRequest): EmailScheduleSettingsResponse {
         validateRequest(request)
 
-        val existingSetting = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
+        val existingSetting = findExistingKpiSummarySchedule()
         val setting = existingSetting
             ?: EmailScheduleSetting(
-                scheduleKey = DASHBOARD_EMAIL_SCHEDULE_KEY,
-                description = DASHBOARD_EMAIL_SCHEDULE_DESCRIPTION,
+                scheduleKey = KPI_SUMMARY_EMAIL_SCHEDULE_KEY,
+                description = KPI_SUMMARY_EMAIL_SCHEDULE_DESCRIPTION,
             )
 
-        setting.description = DASHBOARD_EMAIL_SCHEDULE_DESCRIPTION
+        if (setting.scheduleKey != KPI_SUMMARY_EMAIL_SCHEDULE_KEY) {
+            emailScheduleCacheService.evict(setting.scheduleKey)
+            setting.scheduleKey = KPI_SUMMARY_EMAIL_SCHEDULE_KEY
+        }
+        setting.description = KPI_SUMMARY_EMAIL_SCHEDULE_DESCRIPTION
         setting.isEnabled = request.enabled
         setting.timezone = request.timezone.trim()
         val savedSetting = emailScheduleSettingRepository.saveAndFlush(setting)
@@ -63,12 +67,17 @@ class EmailScheduleSettingsService(
             emailScheduleOccurrenceRepository.saveAllAndFlush(newOccurrences)
         }
 
-        val reloaded = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
-            ?: throw IllegalStateException("Failed to reload dashboard e-mail schedule after update")
-        emailScheduleCacheService.evict(DASHBOARD_EMAIL_SCHEDULE_KEY)
+        val reloaded = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(KPI_SUMMARY_EMAIL_SCHEDULE_KEY)
+            ?: throw IllegalStateException("Failed to reload KPI summary e-mail schedule after update")
+        emailScheduleCacheService.evict(KPI_SUMMARY_EMAIL_SCHEDULE_KEY)
         emailScheduleCacheService.putSchedule(reloaded)
         log.infoEvent("crud.update", "entity" to "email_schedule", "entityId" to reloaded.id, "scheduleKey" to reloaded.scheduleKey, "enabled" to reloaded.isEnabled, "timezone" to reloaded.timezone, "occurrences" to reloaded.occurrences.size)
         return toResponse(reloaded)
+    }
+
+    private fun findExistingKpiSummarySchedule(): EmailScheduleSetting? {
+        return emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(KPI_SUMMARY_EMAIL_SCHEDULE_KEY)
+            ?: emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(LEGACY_DASHBOARD_EMAIL_SCHEDULE_KEY)
     }
 
     private fun validateRequest(request: EmailScheduleSettingsRequest) {
@@ -106,8 +115,9 @@ class EmailScheduleSettingsService(
     }
 
     companion object {
-        private const val DASHBOARD_EMAIL_SCHEDULE_KEY = "DASHBOARD_EMAIL"
-        private const val DASHBOARD_EMAIL_SCHEDULE_DESCRIPTION = "Scheduled dashboard e-mail dispatch"
+        internal const val KPI_SUMMARY_EMAIL_SCHEDULE_KEY = "KPI_SUMMARY_EMAIL"
+        internal const val LEGACY_DASHBOARD_EMAIL_SCHEDULE_KEY = "DASHBOARD_EMAIL"
+        private const val KPI_SUMMARY_EMAIL_SCHEDULE_DESCRIPTION = "Scheduled KPI summary e-mail dispatch"
         private const val DEFAULT_TIMEZONE = "America/Sao_Paulo"
     }
 }

@@ -23,22 +23,22 @@ class EmailScheduleController(
 ) {
 
     @Operation(
-        summary = "Get dashboard e-mail schedule",
-        description = "Returns the current configuration used to schedule the dashboard e-mail dispatch."
+        summary = "Get KPI summary e-mail schedule",
+        description = "Returns the current configuration used to schedule the KPI summary e-mail dispatch."
     )
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "Schedule loaded")
         ]
     )
-    @GetMapping("/dashboard")
-    fun getDashboardSchedule(): ResponseEntity<EmailScheduleSettingsResponse> {
-        return ResponseEntity.ok(emailScheduleSettingsService.getDashboardSchedule())
+    @GetMapping("/kpi-summary")
+    fun getKpiSummarySchedule(): ResponseEntity<EmailScheduleSettingsResponse> {
+        return ResponseEntity.ok(emailScheduleSettingsService.getKpiSummarySchedule())
     }
 
     @Operation(
-        summary = "Replace dashboard e-mail schedule",
-        description = "Replaces the dashboard e-mail schedule configuration with the provided enabled flag, timezone and list of day/time occurrences."
+        summary = "Replace KPI summary e-mail schedule",
+        description = "Replaces the KPI summary e-mail schedule configuration with the provided enabled flag, timezone and list of day/time occurrences."
     )
     @ApiResponses(
         value = [
@@ -46,10 +46,10 @@ class EmailScheduleController(
             ApiResponse(responseCode = "400", description = "Invalid request")
         ]
     )
-    @PutMapping("/dashboard")
-    fun updateDashboardSchedule(
+    @PutMapping("/kpi-summary")
+    fun updateKpiSummarySchedule(
         @Valid @RequestBody request: EmailScheduleSettingsRequest
     ): ResponseEntity<EmailScheduleSettingsResponse> {
-        return ResponseEntity.ok(emailScheduleSettingsService.updateDashboardSchedule(request))
+        return ResponseEntity.ok(emailScheduleSettingsService.updateKpiSummarySchedule(request))
     }
 }

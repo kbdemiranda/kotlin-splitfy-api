@@ -29,31 +29,32 @@ class EmailScheduleSettingsServiceTest {
     private val service = EmailScheduleSettingsService(repository, occurrenceRepository, cacheService)
 
     @Test
-    fun `getDashboardSchedule returns default disabled config when setting is missing`() {
+    fun `getKpiSummarySchedule returns default disabled config when setting is missing`() {
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(null)
         whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(null)
 
-        val response = service.getDashboardSchedule()
+        val response = service.getKpiSummarySchedule()
 
-        assertEquals("DASHBOARD_EMAIL", response.scheduleKey)
+        assertEquals("KPI_SUMMARY_EMAIL", response.scheduleKey)
         assertFalse(response.enabled)
         assertEquals("America/Sao_Paulo", response.timezone)
         assertEquals(0, response.occurrences.size)
     }
 
     @Test
-    fun `updateDashboardSchedule replaces occurrences and sorts response`() {
+    fun `updateKpiSummarySchedule replaces occurrences and sorts response`() {
         val existing = EmailScheduleSetting(
             id = 1L,
-            scheduleKey = "DASHBOARD_EMAIL",
+            scheduleKey = "KPI_SUMMARY_EMAIL",
             description = "Dashboard",
             isEnabled = true,
             timezone = "America/Sao_Paulo",
             createdAt = LocalDateTime.now(),
             updatedAt = LocalDateTime.now(),
         )
-        whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(existing)
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(existing)
         whenever(repository.saveAndFlush(any())).thenAnswer { it.getArgument(0) }
-        whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(existing)
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(existing)
             .thenReturn(
                 existing.copy(
                     occurrences = mutableListOf(
@@ -77,7 +78,7 @@ class EmailScheduleSettingsServiceTest {
                 )
             )
 
-        val response = service.updateDashboardSchedule(
+        val response = service.updateKpiSummarySchedule(
             EmailScheduleSettingsRequest(
                 enabled = true,
                 timezone = "America/Sao_Paulo",
@@ -96,7 +97,7 @@ class EmailScheduleSettingsServiceTest {
         verify(occurrenceRepository).deleteByEmailScheduleSettingId(1L)
         verify(repository).saveAndFlush(any())
         inOrder(cacheService) {
-            verify(cacheService).evict("DASHBOARD_EMAIL")
+            verify(cacheService).evict("KPI_SUMMARY_EMAIL")
             verify(cacheService).putSchedule(any())
         }
         verify(occurrenceRepository).saveAllAndFlush(
@@ -107,9 +108,42 @@ class EmailScheduleSettingsServiceTest {
     }
 
     @Test
-    fun `updateDashboardSchedule rejects duplicate occurrences`() {
+    fun `updateKpiSummarySchedule migrates legacy dashboard key`() {
+        val existing = EmailScheduleSetting(
+            id = 1L,
+            scheduleKey = "DASHBOARD_EMAIL",
+            description = "Dashboard",
+            isEnabled = true,
+            timezone = "America/Sao_Paulo",
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now(),
+        )
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(
+            null,
+            existing.copy(scheduleKey = "KPI_SUMMARY_EMAIL")
+        )
+        whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(existing)
+        whenever(repository.saveAndFlush(any())).thenAnswer { it.getArgument(0) }
+
+        val response = service.updateKpiSummarySchedule(
+            EmailScheduleSettingsRequest(
+                enabled = true,
+                timezone = "America/Sao_Paulo",
+                occurrences = listOf(
+                    EmailScheduleOccurrenceRequest(dayOfWeek = 1, executionTime = LocalTime.of(10, 0))
+                )
+            )
+        )
+
+        assertEquals("KPI_SUMMARY_EMAIL", response.scheduleKey)
+        verify(cacheService).evict("DASHBOARD_EMAIL")
+        verify(cacheService).evict("KPI_SUMMARY_EMAIL")
+    }
+
+    @Test
+    fun `updateKpiSummarySchedule rejects duplicate occurrences`() {
         assertThrows<BadRequestApiException> {
-            service.updateDashboardSchedule(
+            service.updateKpiSummarySchedule(
                 EmailScheduleSettingsRequest(
                     enabled = true,
                     timezone = "America/Sao_Paulo",
@@ -123,9 +157,9 @@ class EmailScheduleSettingsServiceTest {
     }
 
     @Test
-    fun `updateDashboardSchedule rejects invalid timezone`() {
+    fun `updateKpiSummarySchedule rejects invalid timezone`() {
         assertThrows<BadRequestApiException> {
-            service.updateDashboardSchedule(
+            service.updateKpiSummarySchedule(
                 EmailScheduleSettingsRequest(
                     enabled = true,
                     timezone = "invalid/timezone",

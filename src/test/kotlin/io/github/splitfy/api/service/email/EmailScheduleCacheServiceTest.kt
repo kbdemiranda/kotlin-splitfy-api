@@ -50,12 +50,12 @@ class EmailScheduleCacheServiceTest {
 
     @Test
     fun `getSchedule returns cached schedule when cache is fresh`() {
-        whenever(valueOperations.get("email-schedule:DASHBOARD_EMAIL")).thenReturn(cachedScheduleJson(hoursAgo = 2))
+        whenever(valueOperations.get("email-schedule:KPI_SUMMARY_EMAIL")).thenReturn(cachedScheduleJson(hoursAgo = 2))
 
-        val schedule = service.getSchedule("DASHBOARD_EMAIL")
+        val schedule = service.getSchedule("KPI_SUMMARY_EMAIL")
 
         assertNotNull(schedule)
-        assertEquals("DASHBOARD_EMAIL", schedule.scheduleKey)
+        assertEquals("KPI_SUMMARY_EMAIL", schedule.scheduleKey)
         assertEquals(1, schedule.occurrences.size)
         verify(repository, never()).findByScheduleKeyWithOccurrences(any())
     }
@@ -63,46 +63,46 @@ class EmailScheduleCacheServiceTest {
     @Test
     fun `getSchedule reloads from database when cache is stale`() {
         val schedule = sampleSchedule(enabled = true, time = LocalTime.of(10, 0))
-        whenever(valueOperations.get("email-schedule:DASHBOARD_EMAIL")).thenReturn(cachedScheduleJson(hoursAgo = 25))
-        whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(schedule)
+        whenever(valueOperations.get("email-schedule:KPI_SUMMARY_EMAIL")).thenReturn(cachedScheduleJson(hoursAgo = 25))
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(schedule)
 
-        val result = service.getSchedule("DASHBOARD_EMAIL")
+        val result = service.getSchedule("KPI_SUMMARY_EMAIL")
 
         assertEquals(schedule, result)
-        verify(repository).findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")
-        verify(valueOperations).set(eq("email-schedule:DASHBOARD_EMAIL"), any())
+        verify(repository).findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")
+        verify(valueOperations).set(eq("email-schedule:KPI_SUMMARY_EMAIL"), any())
     }
 
     @Test
     fun `getSchedule reloads from database when cache is missing`() {
         val schedule = sampleSchedule(enabled = false, time = LocalTime.of(9, 30))
-        whenever(valueOperations.get("email-schedule:DASHBOARD_EMAIL")).thenReturn(null)
-        whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(schedule)
+        whenever(valueOperations.get("email-schedule:KPI_SUMMARY_EMAIL")).thenReturn(null)
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(schedule)
 
-        val result = service.getSchedule("DASHBOARD_EMAIL")
+        val result = service.getSchedule("KPI_SUMMARY_EMAIL")
 
         assertEquals(schedule, result)
-        verify(repository).findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")
-        verify(valueOperations).set(eq("email-schedule:DASHBOARD_EMAIL"), any())
+        verify(repository).findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")
+        verify(valueOperations).set(eq("email-schedule:KPI_SUMMARY_EMAIL"), any())
     }
 
     @Test
     fun `getSchedule evicts cache when database no longer has the schedule`() {
-        whenever(valueOperations.get("email-schedule:DASHBOARD_EMAIL")).thenReturn(cachedScheduleJson(hoursAgo = 30))
-        whenever(repository.findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")).thenReturn(null)
+        whenever(valueOperations.get("email-schedule:KPI_SUMMARY_EMAIL")).thenReturn(cachedScheduleJson(hoursAgo = 30))
+        whenever(repository.findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")).thenReturn(null)
 
-        val result = service.getSchedule("DASHBOARD_EMAIL")
+        val result = service.getSchedule("KPI_SUMMARY_EMAIL")
 
         assertEquals(null, result)
-        verify(repository).findByScheduleKeyWithOccurrences("DASHBOARD_EMAIL")
-        verify(redisTemplate, times(1)).delete("email-schedule:DASHBOARD_EMAIL")
+        verify(repository).findByScheduleKeyWithOccurrences("KPI_SUMMARY_EMAIL")
+        verify(redisTemplate, times(1)).delete("email-schedule:KPI_SUMMARY_EMAIL")
     }
 
     private fun cachedScheduleJson(hoursAgo: Long): String {
         return objectMapper.writeValueAsString(
             mapOf(
                 "id" to 1,
-                "scheduleKey" to "DASHBOARD_EMAIL",
+                "scheduleKey" to "KPI_SUMMARY_EMAIL",
                 "description" to "Dashboard",
                 "enabled" to true,
                 "timezone" to "America/Sao_Paulo",
@@ -125,7 +125,7 @@ class EmailScheduleCacheServiceTest {
     private fun sampleSchedule(enabled: Boolean, time: LocalTime): EmailScheduleSetting {
         val setting = EmailScheduleSetting(
             id = 1L,
-            scheduleKey = "DASHBOARD_EMAIL",
+            scheduleKey = "KPI_SUMMARY_EMAIL",
             description = "Dashboard",
             isEnabled = enabled,
             timezone = "America/Sao_Paulo",

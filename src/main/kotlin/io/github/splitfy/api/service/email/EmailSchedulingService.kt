@@ -4,6 +4,8 @@ import io.github.splitfy.api.domain.entity.EmailScheduleSetting
 import io.github.splitfy.api.repository.UserRepository
 import io.github.splitfy.api.service.dashboard.DashboardService
 import io.github.splitfy.api.web.dashboard.dto.DashboardKpiResponse
+import io.github.splitfy.api.service.email.EmailScheduleSettingsService.Companion.KPI_SUMMARY_EMAIL_SCHEDULE_KEY
+import io.github.splitfy.api.service.email.EmailScheduleSettingsService.Companion.LEGACY_DASHBOARD_EMAIL_SCHEDULE_KEY
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -32,14 +34,15 @@ class EmailSchedulingService(
     private val rounding = RoundingMode.HALF_UP
 
     @Scheduled(cron = "0 * * * * *")
-    fun sendDailyDashboardEmail() {
-        val schedule = emailScheduleCacheService.getSchedule(DASHBOARD_EMAIL_SCHEDULE_KEY)
+    fun sendDailyKpiSummaryEmail() {
+        val schedule = emailScheduleCacheService.getSchedule(KPI_SUMMARY_EMAIL_SCHEDULE_KEY)
+            ?: emailScheduleCacheService.getSchedule(LEGACY_DASHBOARD_EMAIL_SCHEDULE_KEY)
         if (schedule == null) {
-            log.debug("Dashboard scheduled e-mail dispatch skipped because schedule {} is not configured", DASHBOARD_EMAIL_SCHEDULE_KEY)
+            log.debug("KPI summary scheduled e-mail dispatch skipped because schedule {} is not configured", KPI_SUMMARY_EMAIL_SCHEDULE_KEY)
             return
         }
         if (!schedule.isEnabled) {
-            log.debug("Dashboard scheduled e-mail dispatch is disabled in database")
+            log.debug("KPI summary scheduled e-mail dispatch is disabled in database")
             return
         }
         if (!shouldRunNow(schedule)) {
@@ -48,13 +51,13 @@ class EmailSchedulingService(
 
         val recipient = userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()?.email?.trim()
         if (recipient.isNullOrBlank()) {
-            log.warn("Dashboard scheduled e-mail dispatch skipped because no active user is configured as recipient")
+            log.warn("KPI summary scheduled e-mail dispatch skipped because no active user is configured as recipient")
             return
         }
 
         val kpis = dashboardService.getKpis(null)
-        val subject = "Resumo do dashboard Splitfy - ${formatReferenceMonth(kpis.referenceMonth)}"
-        val htmlBody = buildDashboardEmailHtml(kpis)
+        val subject = "Resumo de KPIs Splitfy - ${formatReferenceMonth(kpis.referenceMonth)}"
+        val htmlBody = buildKpiSummaryEmailHtml(kpis)
 
         emailService.sendHtml(
             to = recipient,
@@ -63,7 +66,7 @@ class EmailSchedulingService(
         )
 
         log.info(
-            "event=email.dashboard.scheduled.sent entity=email_schedule entityId={} scheduleKey={} recipient={} referenceMonth={}",
+            "event=email.kpi-summary.scheduled.sent entity=email_schedule entityId={} scheduleKey={} recipient={} referenceMonth={}",
             schedule.id,
             schedule.scheduleKey,
             recipient,
@@ -88,7 +91,7 @@ class EmailSchedulingService(
         return ZonedDateTime.now(clock).withZoneSameInstant(ZoneId.of(timezone))
     }
 
-    internal fun buildDashboardEmailHtml(kpis: DashboardKpiResponse): String {
+    internal fun buildKpiSummaryEmailHtml(kpis: DashboardKpiResponse): String {
         val totalDue = kpis.totalDue.setScale(finalScale, rounding)
         val statusItems = listOf(
             StatusSummaryItem(
@@ -106,9 +109,9 @@ class EmailSchedulingService(
         )
 
         return emailTemplateService.renderTemplate(
-            templateName = "email/dashboard-kpis",
+            templateName = "email/kpi-summary",
             variables = mapOf(
-                "preheader" to "Resumo do dashboard Splitfy - ${formatReferenceMonth(kpis.referenceMonth)}",
+                "preheader" to "Resumo de KPIs Splitfy - ${formatReferenceMonth(kpis.referenceMonth)}",
                 "referenceMonthLabel" to formatReferenceMonth(kpis.referenceMonth),
                 "totalPendingHighlight" to (kpis.totalPending > BigDecimal.ZERO),
                 "totalPaid" to formatCurrency(kpis.totalPaid),
@@ -177,9 +180,7 @@ class EmailSchedulingService(
         val pendingAmount: String,
         val totalDebt: String,
     )
-
     companion object {
-        private const val DASHBOARD_EMAIL_SCHEDULE_KEY = "DASHBOARD_EMAIL"
         private val REFERENCE_MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMMM 'de' yyyy", Locale("pt", "BR"))
     }
 }

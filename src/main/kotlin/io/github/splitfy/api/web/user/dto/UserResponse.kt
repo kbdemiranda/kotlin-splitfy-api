@@ -17,7 +17,7 @@ data class UserResponse(
     val profile: ProfileSummaryResponse?,
     @Schema(description = "Whether the user is enabled", example = "true")
     val isEnabled: Boolean,
-    @Schema(description = "Whether the user receives the scheduled dashboard e-mail", example = "false")
+    @Schema(description = "Whether the user receives the scheduled KPI summary e-mail", example = "false")
     val receivesDashboardEmail: Boolean,
     @Schema(description = "Creation timestamp")
     val createdAt: LocalDateTime?,

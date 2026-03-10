@@ -54,7 +54,7 @@ class UserController(
 
     @Operation(
         summary = "List users",
-        description = "Returns a paginated list of users, including whether each user is selected to receive the scheduled dashboard e-mail."
+        description = "Returns a paginated list of users, including whether each user is selected to receive the scheduled KPI summary e-mail."
     )
     @ApiResponses(
         value = [
@@ -73,7 +73,7 @@ class UserController(
 
     @Operation(
         summary = "Get user by ID",
-        description = "Returns a user by its unique identifier, including whether this user is selected to receive the scheduled dashboard e-mail."
+        description = "Returns a user by its unique identifier, including whether this user is selected to receive the scheduled KPI summary e-mail."
     )
     @ApiResponses(
         value = [
@@ -107,15 +107,15 @@ class UserController(
     }
 
     @Operation(
-        summary = "Update dashboard e-mail recipient flag",
-        description = "Updates only the flag that defines whether the user receives the scheduled dashboard e-mail. If another active user is already selected, the API returns 409 unless `force=true` is informed."
+        summary = "Update KPI summary e-mail recipient flag",
+        description = "Updates only the flag that defines whether the user receives the scheduled KPI summary e-mail. If another active user is already selected, the API returns 409 unless `force=true` is informed."
     )
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "200", description = "Dashboard e-mail preference updated"),
+            ApiResponse(responseCode = "200", description = "KPI summary e-mail preference updated"),
             ApiResponse(responseCode = "400", description = "Invalid request"),
             ApiResponse(responseCode = "404", description = "User not found"),
-            ApiResponse(responseCode = "409", description = "Another user is already configured as the dashboard e-mail recipient")
+            ApiResponse(responseCode = "409", description = "Another user is already configured as the KPI summary e-mail recipient")
         ]
     )
     @PatchMapping("/{id}/dashboard-email-preference")

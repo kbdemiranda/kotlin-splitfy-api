@@ -2,9 +2,9 @@ package io.github.splitfy.api.web.emailschedule.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
 
-@Schema(description = "Dashboard e-mail schedule settings")
+@Schema(description = "KPI summary e-mail schedule settings")
 data class EmailScheduleSettingsResponse(
-    @Schema(description = "Internal key of the configured schedule", example = "DASHBOARD_EMAIL")
+    @Schema(description = "Internal key of the configured schedule", example = "KPI_SUMMARY_EMAIL")
     val scheduleKey: String,
 
     @Schema(description = "Whether the schedule is enabled", example = "true")

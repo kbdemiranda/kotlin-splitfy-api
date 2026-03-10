@@ -33,9 +33,9 @@ class EmailSchedulingServiceTest {
     private val templateService = EmailTemplateService()
 
     @Test
-    fun `sendDailyDashboardEmail sends dashboard summary when schedule matches and recipient is configured`() {
+    fun `sendDailyKpiSummaryEmail sends KPI summary when schedule matches and recipient is configured`() {
         whenever(dashboardService.getKpis(null)).thenReturn(sampleKpis())
-        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
+        whenever(emailScheduleCacheService.getSchedule("KPI_SUMMARY_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = true)
         )
         whenever(userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()).thenReturn(
@@ -51,19 +51,19 @@ class EmailSchedulingServiceTest {
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
-        service.sendDailyDashboardEmail()
+        service.sendDailyKpiSummaryEmail()
 
         verify(emailService).sendHtml(
             eq("finance@splitfy.com"),
-            eq("Resumo do dashboard Splitfy - março de 2026"),
+            eq("Resumo de KPIs Splitfy - março de 2026"),
             any(),
             any()
         )
     }
 
     @Test
-    fun `sendDailyDashboardEmail does nothing when schedule is disabled`() {
-        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
+    fun `sendDailyKpiSummaryEmail does nothing when schedule is disabled`() {
+        whenever(emailScheduleCacheService.getSchedule("KPI_SUMMARY_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = false)
         )
 
@@ -76,7 +76,7 @@ class EmailSchedulingServiceTest {
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
-        service.sendDailyDashboardEmail()
+        service.sendDailyKpiSummaryEmail()
 
         verify(userRepository, never()).findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
         verify(dashboardService, never()).getKpis(any())
@@ -84,8 +84,8 @@ class EmailSchedulingServiceTest {
     }
 
     @Test
-    fun `sendDailyDashboardEmail does nothing when current time does not match configured slots`() {
-        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
+    fun `sendDailyKpiSummaryEmail does nothing when current time does not match configured slots`() {
+        whenever(emailScheduleCacheService.getSchedule("KPI_SUMMARY_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(11, 0), timezone = "America/Sao_Paulo", enabled = true)
         )
 
@@ -98,7 +98,7 @@ class EmailSchedulingServiceTest {
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
-        service.sendDailyDashboardEmail()
+        service.sendDailyKpiSummaryEmail()
 
         verify(userRepository, never()).findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
         verify(dashboardService, never()).getKpis(any())
@@ -106,8 +106,8 @@ class EmailSchedulingServiceTest {
     }
 
     @Test
-    fun `sendDailyDashboardEmail does nothing when no active recipient is configured`() {
-        whenever(emailScheduleCacheService.getSchedule("DASHBOARD_EMAIL")).thenReturn(
+    fun `sendDailyKpiSummaryEmail does nothing when no active recipient is configured`() {
+        whenever(emailScheduleCacheService.getSchedule("KPI_SUMMARY_EMAIL")).thenReturn(
             schedule(dayOfWeek = 1, time = LocalTime.of(10, 0), timezone = "America/Sao_Paulo", enabled = true)
         )
 
@@ -120,7 +120,7 @@ class EmailSchedulingServiceTest {
             clock = Clock.fixed(Instant.parse("2026-03-09T13:00:00Z"), ZoneOffset.UTC)
         )
 
-        service.sendDailyDashboardEmail()
+        service.sendDailyKpiSummaryEmail()
 
         verify(userRepository).findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
         verify(dashboardService, never()).getKpis(any())
@@ -135,7 +135,7 @@ class EmailSchedulingServiceTest {
     ): EmailScheduleSetting {
         val setting = EmailScheduleSetting(
             id = 1L,
-            scheduleKey = "DASHBOARD_EMAIL",
+            scheduleKey = "KPI_SUMMARY_EMAIL",
             description = "Dashboard",
             isEnabled = enabled,
             timezone = timezone,

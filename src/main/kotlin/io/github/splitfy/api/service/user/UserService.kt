@@ -100,14 +100,14 @@ class UserService(
 
         if (request.receivesDashboardEmail) {
             if (!user.isEnabled) {
-                throw BadRequestApiException("User must be enabled to receive scheduled dashboard e-mail")
+                throw BadRequestApiException("User must be enabled to receive scheduled KPI summary e-mail")
             }
 
             val currentRecipient = userRepository.findByReceivesDashboardEmailTrueAndDeletedAtIsNullAndIsEnabledTrue()
             if (currentRecipient != null && currentRecipient.id != user.id) {
                 if (!request.force) {
                     throw ConflictApiException(
-                        "Another user is already configured as the scheduled dashboard e-mail recipient: " +
+                        "Another user is already configured as the scheduled KPI summary e-mail recipient: " +
                             "${currentRecipient.name} <${currentRecipient.email}>. Retry with force=true to replace it."
                     )
                 }
