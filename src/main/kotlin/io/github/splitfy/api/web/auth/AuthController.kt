@@ -78,7 +78,12 @@ class AuthController(
         ]
     )
     @PostMapping("/reset-password")
-    fun resetPassword(@Valid @RequestBody request: ResetPasswordRequest): ResponseEntity<SimpleMessageResponse> {
+    fun resetPassword(
+        @Valid @RequestBody request: ResetPasswordRequest,
+        @Parameter(hidden = true)
+        servletRequest: HttpServletRequest
+    ): ResponseEntity<SimpleMessageResponse> {
+        authRateLimitService.checkResetPasswordAllowed(clientIp(servletRequest), authService.tokenFingerprint(request.token))
         return ResponseEntity.ok(authService.resetPassword(request))
     }
 

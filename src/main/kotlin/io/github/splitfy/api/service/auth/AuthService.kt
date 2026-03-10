@@ -24,9 +24,10 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.slf4j.LoggerFactory
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.security.SecureRandom
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -41,7 +42,8 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val emailService: EmailService,
     private val emailTemplateService: EmailTemplateService,
-    @Value("\${splitfy.auth.reset-token-expiration-minutes:30}") private val resetTokenExpirationMinutes: Long,
+    @Value("\${splitfy.auth.reset-token-expiration-minutes:15}") private val resetTokenExpirationMinutes: Long,
+    @Value("\${splitfy.auth.reset-token-max-attempts:5}") private val resetTokenMaxAttempts: Int,
 ) {
     private val log = LoggerFactory.getLogger(AuthService::class.java)
 
@@ -121,7 +123,10 @@ class AuthService(
         val now = LocalDateTime.now()
         val tokenHash = hashToken(token)
         val resetToken = passwordResetTokenRepository.findActiveByTokenHash(tokenHash, now)
-            ?: throw BadRequestApiException("Invalid or expired reset token")
+            ?: run {
+                passwordResetTokenRepository.registerFailedAttempt(tokenHash, now, resetTokenMaxAttempts)
+                throw BadRequestApiException("Invalid or expired reset token")
+            }
 
         val user = resetToken.user
         if (!user.isEnabled || user.deletedAt != null) {
@@ -140,9 +145,12 @@ class AuthService(
     }
 
     private fun generateResetToken(): String {
-        val code = SecureRandom().nextInt(1_000_000)
-        return code.toString().padStart(6, '0')
+        val bytes = ByteArray(32)
+        secureRandom.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
+
+    fun tokenFingerprint(token: String): String = hashToken(token.trim())
 
     private fun hashToken(token: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
@@ -178,6 +186,7 @@ class AuthService(
     }
 
     companion object {
+        private val secureRandom = SecureRandom()
         private val RESET_EXPIRATION_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
     }
 }

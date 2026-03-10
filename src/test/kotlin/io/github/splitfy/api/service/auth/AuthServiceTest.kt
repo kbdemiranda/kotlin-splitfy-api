@@ -50,7 +50,8 @@ class AuthServiceTest {
         passwordEncoder = passwordEncoder,
         emailService = emailService,
         emailTemplateService = emailTemplateService,
-        resetTokenExpirationMinutes = 30,
+        resetTokenExpirationMinutes = 15,
+        resetTokenMaxAttempts = 5,
     )
 
     @Test
@@ -121,18 +122,35 @@ class AuthServiceTest {
         assertEquals("Password reset successful.", response.message)
         verify(userRepository, times(1)).save(argThat { password == "encoded-new-password" })
         verify(passwordResetTokenRepository, times(1)).invalidateAllActiveByUserId(eq(user.id!!), any())
+        verify(passwordResetTokenRepository, never()).registerFailedAttempt(any(), any(), any())
     }
 
     @Test
-    fun `resetPassword throws when token is invalid`() {
+    fun `resetPassword throws when token is invalid and records failed attempt`() {
         whenever(passwordResetTokenRepository.findActiveByTokenHash(any(), any())).thenReturn(null)
 
         val ex = assertThrows(BadRequestApiException::class.java) {
-            service.resetPassword(ResetPasswordRequest(token = "invalid", newPassword = "New@Password1"))
+            service.resetPassword(
+                ResetPasswordRequest(
+                    token = "S7A6B8NINzV0vDgCk3iybB24wL-r2I8M7VJt1o8C2aM",
+                    newPassword = "New@Password1"
+                )
+            )
         }
 
         assertNotNull(ex)
         verify(userRepository, never()).save(any())
+        verify(passwordResetTokenRepository, times(1)).registerFailedAttempt(any(), any(), eq(5))
+    }
+
+    @Test
+    fun `tokenFingerprint is a stable hash for rate limiting without exposing token`() {
+        val token = "S7A6B8NINzV0vDgCk3iybB24wL-r2I8M7VJt1o8C2aM"
+
+        val fingerprint = service.tokenFingerprint(token)
+
+        assertEquals(64, fingerprint.length)
+        assertEquals(fingerprint, service.tokenFingerprint(token))
     }
 
     private fun activeUser(email: String): User {

@@ -10,4 +10,6 @@ class AuthRateLimitProperties {
     var loginByEmailPerMinute: Int = 10
     var forgotByIpPerHour: Int = 20
     var forgotByEmailPerHour: Int = 5
+    var resetByIpPerHour: Int = 20
+    var resetByTokenPerHour: Int = 10
 }

@@ -48,6 +48,21 @@ class AuthRateLimitService(
         )
     }
 
+    fun checkResetPasswordAllowed(clientIp: String, tokenFingerprint: String) {
+        enforce(
+            key = "reset:ip:$clientIp",
+            maxRequests = properties.resetByIpPerHour,
+            duration = Duration.ofHours(1),
+            message = "Too many password reset attempts from your IP. Please try again later."
+        )
+        enforce(
+            key = "reset:token:$tokenFingerprint",
+            maxRequests = properties.resetByTokenPerHour,
+            duration = Duration.ofHours(1),
+            message = "Too many password reset attempts for this token. Request a new reset link."
+        )
+    }
+
     private fun enforce(key: String, maxRequests: Int, duration: Duration, message: String) {
         val windowMillis = duration.toMillis()
         val now = clock.millis()

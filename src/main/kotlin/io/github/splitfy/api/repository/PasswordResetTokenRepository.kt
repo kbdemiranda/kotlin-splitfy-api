@@ -33,6 +33,25 @@ interface PasswordResetTokenRepository : JpaRepository<PasswordResetToken, Long>
     @Query(
         """
         update PasswordResetToken t
+           set t.failedAttempts = t.failedAttempts + 1,
+               t.usedAt = case when (t.failedAttempts + 1) >= :maxAttempts then :now else t.usedAt end,
+               t.updatedAt = :now
+         where t.tokenHash = :tokenHash
+           and t.usedAt is null
+           and t.deletedAt is null
+           and t.expiresAt > :now
+        """
+    )
+    fun registerFailedAttempt(
+        @Param("tokenHash") tokenHash: String,
+        @Param("now") now: LocalDateTime,
+        @Param("maxAttempts") maxAttempts: Int
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        update PasswordResetToken t
            set t.usedAt = :now,
                t.updatedAt = :now
          where t.user.id = :userId

@@ -53,6 +53,17 @@ splitfy:
     retry:
       max-attempts: 1
       backoff-ms: 0
+  auth:
+    reset-token-expiration-minutes: 15
+    reset-token-max-attempts: 5
+  security:
+    rate-limit:
+      login-by-ip-per-minute: 30
+      login-by-email-per-minute: 10
+      forgot-by-ip-per-hour: 20
+      forgot-by-email-per-hour: 5
+      reset-by-ip-per-hour: 20
+      reset-by-token-per-hour: 10
 
 logging:
   level:

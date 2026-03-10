@@ -41,6 +41,9 @@ data class PasswordResetToken(
     @Column(name = "used_at")
     var usedAt: LocalDateTime? = null,
 
+    @Column(name = "failed_attempts", nullable = false)
+    var failedAttempts: Int = 0,
+
     @Column(name = "requested_ip", length = 64)
     var requestedIp: String? = null,
 

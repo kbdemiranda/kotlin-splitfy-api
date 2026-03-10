@@ -8,8 +8,9 @@ import jakarta.validation.constraints.Size
 @Schema(description = "Reset password request payload")
 data class ResetPasswordRequest(
     @field:NotBlank
-    @field:Pattern(regexp = "^\\d{6}$", message = "Token must be a 6-digit code")
-    @field:Schema(description = "Six-digit reset token", example = "123456")
+    @field:Size(min = 43, max = 128)
+    @field:Pattern(regexp = "^[A-Za-z0-9_-]{43,128}$", message = "Token must be a URL-safe reset token")
+    @field:Schema(description = "URL-safe reset token", example = "S7A6B8NINzV0vDgCk3iybB24wL-r2I8M7VJt1o8C2aM")
     val token: String,
 
     @field:NotBlank
