@@ -105,6 +105,11 @@ Optional (recommended):
 - `MAIL_RETRY_MAX_ATTEMPTS`
 - `MAIL_RETRY_BACKOFF_MS`
 
+Redis note:
+
+- if the API runs locally on your machine and Redis runs through this repository's `docker compose`, use `REDIS_HOST=localhost` and `REDIS_PORT=16379`
+- if the API runs inside the `backend` container from `docker-compose.yml`, use `REDIS_HOST=redis` and `REDIS_PORT=6379`
+
 Example:
 
 ```bash

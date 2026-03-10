@@ -27,7 +27,6 @@ spring:
       host: localhost
       port: 6379
       timeout: 500ms
-
 splitfy:
   jwt:
     secret: test-secret-which-needs-at-least-32-bytes-123456
