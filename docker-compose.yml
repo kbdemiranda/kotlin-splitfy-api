@@ -13,6 +13,9 @@ services:
       DB_URL: ${DB_URL}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_TIMEOUT: ${REDIS_TIMEOUT:-2s}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
       MAIL_USERNAME: ${MAIL_USERNAME}
@@ -22,6 +25,8 @@ services:
       SPLITFY_BILLING_PIX_COPY_PASTE: ${PIX_COPY_PASTE:-123.456.789-00}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@splitfy.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+    depends_on:
+      - redis
     ports:
       - "9090:8080"
 
@@ -47,6 +52,6 @@ services:
     restart: unless-stopped
     ports:
       - "16379:6379"
-    command: [ "redis-server", "--port", "6380", "--appendonly", "yes" ]
+    command: [ "redis-server", "--port", "6379", "--appendonly", "yes" ]
 volumes:
   splitfy_frontend_node_modules:
