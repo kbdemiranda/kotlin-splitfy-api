@@ -1,20 +1,19 @@
 package io.github.splitfy.api.service.auth
 
 import io.github.splitfy.api.exception.TooManyRequestsApiException
+import org.slf4j.LoggerFactory
+import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
 import java.time.Clock
 import java.time.Duration
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 
 @Service
 class AuthRateLimitService(
     private val properties: AuthRateLimitProperties,
+    private val redisTemplate: StringRedisTemplate,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
-
-    private val windows = ConcurrentHashMap<String, WindowState>()
-    private val operations = AtomicLong(0)
-    private val clock: Clock = Clock.systemUTC()
+    private val log = LoggerFactory.getLogger(AuthRateLimitService::class.java)
 
     fun checkLoginAllowed(clientIp: String, email: String) {
         val normalizedEmail = email.trim().lowercase()
@@ -64,45 +63,29 @@ class AuthRateLimitService(
     }
 
     private fun enforce(key: String, maxRequests: Int, duration: Duration, message: String) {
-        val windowMillis = duration.toMillis()
-        val now = clock.millis()
-        val state = windows.computeIfAbsent(key) { WindowState(now, 0, windowMillis) }
-
-        val currentCount = synchronized(state) {
-            if (now - state.startedAtMs >= state.windowMs) {
-                state.startedAtMs = now
-                state.count = 0
+        val redisKey = cacheKey(key)
+        val currentCount = runCatching {
+            val count = redisTemplate.opsForValue().increment(redisKey) ?: 0L
+            if (count == 1L) {
+                redisTemplate.expire(redisKey, duration)
             }
-            state.count += 1
-            state.count
+            count
+        }.onFailure { ex ->
+            log.warn("Failed to enforce auth rate limit for key {}", key, ex)
+        }.getOrDefault(0L)
+
+        if (currentCount == 0L) {
+            return
         }
 
         if (currentCount > maxRequests) {
             throw TooManyRequestsApiException(message)
         }
-
-        if (operations.incrementAndGet() % 100L == 0L) {
-            cleanup(now)
-        }
     }
 
-    private fun cleanup(now: Long) {
-        val iterator = windows.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            val state = entry.value
-            val shouldRemove = synchronized(state) {
-                now - state.startedAtMs >= state.windowMs * 3
-            }
-            if (shouldRemove) {
-                iterator.remove()
-            }
-        }
-    }
+    private fun cacheKey(key: String): String = "$CACHE_KEY_PREFIX:$key"
 
-    private data class WindowState(
-        var startedAtMs: Long,
-        var count: Int,
-        val windowMs: Long,
-    )
+    companion object {
+        private const val CACHE_KEY_PREFIX = "auth-rate-limit"
+    }
 }
