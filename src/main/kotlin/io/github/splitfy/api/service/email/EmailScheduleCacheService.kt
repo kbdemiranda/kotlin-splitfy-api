@@ -24,9 +24,16 @@ class EmailScheduleCacheService(
     private val log = LoggerFactory.getLogger(EmailScheduleCacheService::class.java)
 
     fun getSchedule(scheduleKey: String): EmailScheduleSetting? {
+        log.info("Checking Redis cache for email schedule {}", scheduleKey)
         val cached = getCachedPayload(scheduleKey)
         if (cached != null && !cached.isStale(clock.instant(), properties.maxAge)) {
+            log.info("Redis cache hit for email schedule {}", scheduleKey)
             return cached.toEntity()
+        }
+        if (cached == null) {
+            log.info("Redis cache miss for email schedule {}", scheduleKey)
+        } else {
+            log.info("Redis cache stale for email schedule {}, reloading from database", scheduleKey)
         }
 
         val fresh = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(scheduleKey)
@@ -36,6 +43,7 @@ class EmailScheduleCacheService(
         }
 
         putSchedule(fresh)
+        log.info("Email schedule {} loaded from database and stored in Redis", scheduleKey)
         return fresh
     }
 

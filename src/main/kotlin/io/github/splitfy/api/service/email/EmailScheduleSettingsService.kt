@@ -65,6 +65,7 @@ class EmailScheduleSettingsService(
 
         val reloaded = emailScheduleSettingRepository.findByScheduleKeyWithOccurrences(DASHBOARD_EMAIL_SCHEDULE_KEY)
             ?: throw IllegalStateException("Failed to reload dashboard e-mail schedule after update")
+        emailScheduleCacheService.evict(DASHBOARD_EMAIL_SCHEDULE_KEY)
         emailScheduleCacheService.putSchedule(reloaded)
         log.infoEvent("crud.update", "entity" to "email_schedule", "entityId" to reloaded.id, "scheduleKey" to reloaded.scheduleKey, "enabled" to reloaded.isEnabled, "timezone" to reloaded.timezone, "occurrences" to reloaded.occurrences.size)
         return toResponse(reloaded)

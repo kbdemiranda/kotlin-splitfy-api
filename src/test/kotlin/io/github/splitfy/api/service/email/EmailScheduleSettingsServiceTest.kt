@@ -12,6 +12,7 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.LocalDateTime
@@ -94,7 +95,10 @@ class EmailScheduleSettingsServiceTest {
         assertEquals(LocalTime.of(12, 0), response.occurrences[1].executionTime)
         verify(occurrenceRepository).deleteByEmailScheduleSettingId(1L)
         verify(repository).saveAndFlush(any())
-        verify(cacheService).putSchedule(any())
+        inOrder(cacheService) {
+            verify(cacheService).evict("DASHBOARD_EMAIL")
+            verify(cacheService).putSchedule(any())
+        }
         verify(occurrenceRepository).saveAllAndFlush(
             argThat<MutableIterable<EmailScheduleOccurrence>> {
                 this.count() == 2
