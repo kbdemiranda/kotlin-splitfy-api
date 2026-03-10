@@ -18,6 +18,9 @@ spring:
           auto: none
   flyway:
     enabled: false
+  h2:
+    console:
+      enabled: false
   sql:
     init:
       mode: never

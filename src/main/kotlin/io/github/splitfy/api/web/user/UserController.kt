@@ -37,7 +37,7 @@ class UserController(
 
     @Operation(
         summary = "Create user",
-        description = "Creates a new user."
+        description = "Creates a new user. Public sign-ups are always created with the VIEWER profile."
     )
     @ApiResponses(
         value = [

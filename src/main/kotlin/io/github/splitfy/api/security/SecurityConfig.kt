@@ -2,6 +2,7 @@ package io.github.splitfy.api.security
 
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -26,6 +27,7 @@ class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     private val accessLoggingFilter: AccessLoggingFilter,
     private val userDetailsService: CustomUserDetailsService,
+    @Value("\${spring.h2.console.enabled:false}") private val h2ConsoleEnabled: Boolean,
 ) {
 
     @Bean
@@ -76,7 +78,7 @@ class SecurityConfig(
                 }
             }
             .authorizeHttpRequests {
-                it.requestMatchers(
+                val publicPaths = mutableListOf(
                     "/auth/login",
                     "/auth/forgot-password",
                     "/auth/reset-password",
@@ -88,9 +90,14 @@ class SecurityConfig(
                     "/v3/api-docs.yaml",
                     "/v3/api-docs/**",
                     "/actuator/health",
-                    "/h2-console/**",
                     "/",
-                ).permitAll()
+                )
+
+                if (h2ConsoleEnabled) {
+                    publicPaths += "/h2-console/**"
+                }
+
+                it.requestMatchers(*publicPaths.toTypedArray()).permitAll()
                 it.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 it.requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
 

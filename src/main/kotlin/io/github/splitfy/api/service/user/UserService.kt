@@ -41,7 +41,7 @@ class UserService(
             throw ConflictApiException("Email already in use: ${request.email}")
         }
 
-        val profile = resolveProfileForCreate(request)
+        val profile = profileService.getProfileByName(ProfileName.VIEWER)
         val user = User(
             name = request.name,
             email = request.email.lowercase(),
@@ -196,17 +196,6 @@ class UserService(
             htmlBody = htmlBody,
         )
         log.infoEvent("email.user.welcome.sent", "entity" to "user", "entityId" to user.id, "email" to user.email)
-    }
-
-    private fun resolveProfileForCreate(request: UserCreateRequest): Profile {
-        if (request.profileId != null && request.profileName != null) {
-            throw BadRequestApiException("Provide either profileId or profileName, not both")
-        }
-
-        request.profileId?.let { return profileService.getProfile(it) }
-        request.profileName?.let { return profileService.getProfileByName(it) }
-
-        return profileService.getProfileByName(ProfileName.VIEWER)
     }
 
     private fun resolveProfileForUpdate(request: UserUpdateRequest): Profile? {

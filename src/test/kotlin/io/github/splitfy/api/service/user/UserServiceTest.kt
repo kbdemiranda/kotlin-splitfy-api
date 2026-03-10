@@ -71,6 +71,35 @@ class UserServiceTest {
     }
 
     @Test
+    fun `create ignores privileged profile sent by client and always uses viewer`() {
+        val viewerProfile = sampleProfile()
+
+        whenever(userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("new@splitfy.com")).thenReturn(false)
+        whenever(profileService.getProfileByName(ProfileName.VIEWER)).thenReturn(viewerProfile)
+        whenever(passwordEncoder.encode("password123")).thenReturn("encoded-password")
+        whenever(userRepository.save(any())).thenAnswer { invocation ->
+            val saved = invocation.getArgument<User>(0)
+            if (saved.id == null) {
+                saved.id = UUID.randomUUID()
+            }
+            saved
+        }
+
+        service.create(
+            UserCreateRequest(
+                name = "New User",
+                email = "new@splitfy.com",
+                password = "password123",
+                profileName = ProfileName.ADMIN,
+            )
+        )
+
+        verify(profileService, times(1)).getProfileByName(ProfileName.VIEWER)
+        verify(profileService, never()).getProfileByName(ProfileName.ADMIN)
+        verify(userRepository).save(argThat<User> { profile?.name == ProfileName.VIEWER })
+    }
+
+    @Test
     fun `update no longer changes dashboard email recipient`() {
         val targetUserId = UUID.randomUUID()
         val targetUser = sampleUser(
