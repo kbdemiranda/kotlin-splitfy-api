@@ -57,6 +57,8 @@ splitfy:
     reset-token-expiration-minutes: 15
     reset-token-max-attempts: 5
   security:
+    cors:
+      allowed-origins: http://localhost:4242,http://127.0.0.1:4242
     rate-limit:
       login-by-ip-per-minute: 30
       login-by-email-per-minute: 10

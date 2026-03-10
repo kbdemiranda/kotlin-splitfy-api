@@ -28,6 +28,7 @@ class SecurityConfig(
     private val accessLoggingFilter: AccessLoggingFilter,
     private val userDetailsService: CustomUserDetailsService,
     @Value("\${spring.h2.console.enabled:false}") private val h2ConsoleEnabled: Boolean,
+    @Value("\${splitfy.security.cors.allowed-origins:http://localhost:4242,http://127.0.0.1:4242}") private val allowedOrigins: String,
 ) {
 
     @Bean
@@ -47,12 +48,16 @@ class SecurityConfig(
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
+        val configuredOrigins = allowedOrigins
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+
         val config = CorsConfiguration().apply {
-            // Temporary dev setup: allow any frontend origin.
-            allowedOriginPatterns = listOf("*")
-            allowedMethods = listOf("*")
-            allowedHeaders = listOf("*")
-            exposedHeaders = listOf("Authorization")
+            this.allowedOrigins = configuredOrigins
+            allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            allowedHeaders = listOf("Authorization", "Content-Type", "Accept", "X-Request-Id")
+            exposedHeaders = listOf("Authorization", "X-Request-Id")
             allowCredentials = true
             maxAge = 3600
         }

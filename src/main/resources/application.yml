@@ -79,6 +79,8 @@ splitfy:
       cache:
         max-age: ${EMAIL_SCHEDULE_CACHE_MAX_AGE:24h}
   security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS}
     rate-limit:
       login-by-ip-per-minute: ${AUTH_RATE_LIMIT_LOGIN_IP_PER_MINUTE:30}
       login-by-email-per-minute: ${AUTH_RATE_LIMIT_LOGIN_EMAIL_PER_MINUTE:10}
