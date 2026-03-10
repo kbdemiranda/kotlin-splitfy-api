@@ -106,11 +106,7 @@ class AuthController(
     }
 
     private fun clientIp(request: HttpServletRequest): String {
-        val forwarded = request.getHeader("X-Forwarded-For")
-            ?.split(",")
-            ?.firstOrNull()
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-        return forwarded ?: request.remoteAddr ?: "unknown"
+        // Do not trust X-Forwarded-For unless the app is behind a known proxy chain.
+        return request.remoteAddr?.takeIf { it.isNotBlank() } ?: "unknown"
     }
 }
