@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: splitfy-showroom-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: splitfy_showroom
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "35432:5432"
+    volumes:
+      - splitfy_showroom_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d splitfy_showroom"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: splitfy-showroom-redis
+    restart: unless-stopped
+    ports:
+      - "17379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kbdemiranda/kotlin-splitfy-api:showroom
+    container_name: splitfy-showroom-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: showroom
+      DB_URL: jdbc:postgresql://postgres:5432/splitfy_showroom
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_TIMEOUT: 2s
+      JWT_SECRET: showroom-secret-with-at-least-32-bytes
+      JWT_EXPIRATION_MS: 3600000
+      MAIL_USERNAME: showroom@example.com
+      MAIL_PASSWORD: showroom-password
+      MAIL_FROM: Splitfy Showroom <no-reply@splitfy.local>
+      PIX_KEY: showroom-pix-key
+      PIX_COPY_PASTE: 000201010212SHOWROOM
+      ADMIN_EMAIL: admin@splitfy.local
+      ADMIN_PASSWORD: admin
+      CORS_ALLOWED_ORIGINS: http://localhost:4343,http://127.0.0.1:4343
+    ports:
+      - "9191:8080"
+
+  frontend:
+    build:
+      context: ../angular-splitfy-frontend
+      dockerfile: Dockerfile.dev
+    image: kbdemiranda/angular-splitfy-frontend:showroom
+    container_name: splitfy-showroom-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      API_BASE_URL: http://backend:8080
+    ports:
+      - "4343:4242"
+    volumes:
+      - ../angular-splitfy-frontend:/app
+      - splitfy_showroom_frontend_node_modules:/app/node_modules
+
+volumes:
+  splitfy_showroom_postgres_data:
+  splitfy_showroom_frontend_node_modules:

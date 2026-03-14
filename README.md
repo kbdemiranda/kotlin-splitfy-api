@@ -158,6 +158,7 @@ There are now two compose flows in this repository:
 
 - `docker-compose.yml`: local development stack
 - `docker-compose.prod.yml`: production-style stack
+- `docker-compose.showroom.yml`: interview/demo stack with isolated infra and seeded data
 
 ### Development stack
 
@@ -248,6 +249,56 @@ Important:
 - both compose files expect an already provisioned schema; if required tables do not exist, the application should fail on startup/runtime instead of creating them
 - `docker-compose.prod.yml` expects an already provisioned schema, because the app default config keeps `spring.jpa.hibernate.ddl-auto=none`
 - use `docker-compose.yml` for day-to-day development with the Angular dev server
+
+### Showroom stack
+
+Use this when you want a self-contained demo environment for interviews, portfolio videos, or LinkedIn posts.
+
+Behavior:
+
+- starts dedicated PostgreSQL and Redis containers
+- runs the backend with `SPRING_PROFILES_ACTIVE=showroom`
+- auto-creates the schema on startup for the showroom database only
+- seeds richer demo data for users, subscribers, platforms, subscriber-platform associations, and payment confirmations
+- uses separate ports to avoid colliding with the regular local stack
+
+Start:
+
+```bash
+docker compose -f docker-compose.showroom.yml up --build -d
+```
+
+Logs:
+
+```bash
+docker compose -f docker-compose.showroom.yml logs -f backend
+docker compose -f docker-compose.showroom.yml logs -f frontend
+```
+
+Stop:
+
+```bash
+docker compose -f docker-compose.showroom.yml down
+```
+
+Stop and remove showroom data volume:
+
+```bash
+docker compose -f docker-compose.showroom.yml down -v
+```
+
+Endpoints:
+
+- Frontend: `http://localhost:4343`
+- API: `http://localhost:9191`
+- Swagger: `http://localhost:9191/swagger-ui/index.html`
+- PostgreSQL: `localhost:25432`
+- Redis: `localhost:17379`
+
+Default showroom credentials:
+
+- admin email: `admin@splitfy.local`
+- admin password: `admin`
 
 ## Building and Publishing the Image
 
