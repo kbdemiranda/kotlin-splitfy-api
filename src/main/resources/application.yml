@@ -6,13 +6,21 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:2}
+      minimum-idle: ${DB_MIN_IDLE:0}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:10000}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:10000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: none
     generate-ddl: false
     show-sql: true
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         hbm2ddl:
           auto: none
