@@ -7,7 +7,9 @@ data class SubscriberRequest(
     @Schema(description = "Subscriber name", example = "Ana Silva")
     val name: String,
     @Schema(description = "Subscriber email", example = "ana.silva@example.com")
-    val email: String
+    val email: String,
+    @Schema(description = "Financial responsible subscriber id. If omitted, defaults to the subscriber itself", example = "1")
+    val financialResponsibleSubscriberId: Long? = null,
 ) {
 
     init {

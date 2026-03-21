@@ -12,4 +12,6 @@ interface SubscriberRepository : JpaRepository<Subscriber, Long> {
     fun findByDeletedAtIsNull(pageable: Pageable): Page<Subscriber>
 
     fun findByDeletedAtIsNullAndNameContainingIgnoreCase(name: String, pageable: Pageable): Page<Subscriber>
+
+    fun findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(financialResponsibleSubscriberId: Long): List<Subscriber>
 }

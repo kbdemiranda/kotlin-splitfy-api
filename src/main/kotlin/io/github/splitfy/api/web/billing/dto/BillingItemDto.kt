@@ -30,5 +30,7 @@ data class BillingItemDto(
     @Schema(description = "Date of the exchange rate used for conversion", nullable = true)
     val exchangeRateDate: LocalDate? = null,
     @Schema(description = "Subscriber payment status for this platform")
-    val paymentStatus: PaymentStatus = PaymentStatus.UNPAID
+    val paymentStatus: PaymentStatus = PaymentStatus.UNPAID,
+    @Schema(description = "Covered subscribers that compose this billed amount")
+    val coveredSubscribers: List<BillingCoveredSubscriberItemDto> = emptyList()
 )

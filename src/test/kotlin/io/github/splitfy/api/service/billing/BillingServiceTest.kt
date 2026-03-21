@@ -102,7 +102,8 @@ class BillingServiceTest {
         val assoc2 = sampleAssoc(2L, subscriber, office)
 
         whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
-        whenever(paymentConfirmationRepository.findBySubscriberIdAndReferenceMonthAndDeletedAtIsNull(any(), any())).thenReturn(emptyList())
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(any(), any())).thenReturn(emptyList())
         whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(assoc1, assoc2))
         whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L, 3L))).thenReturn(listOf(
             object : SubscriberPlatformRepository.PlatformParticipantsCount { override fun getPlatformId() = 2L; override fun getCount() = 2L },
@@ -142,7 +143,8 @@ class BillingServiceTest {
         val quoteAt = LocalDateTime.of(2026, 2, 12, 13, 4, 38)
 
         whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
-        whenever(paymentConfirmationRepository.findBySubscriberIdAndReferenceMonthAndDeletedAtIsNull(any(), any())).thenReturn(emptyList())
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(any(), any())).thenReturn(emptyList())
         whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(assoc))
         whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(4L))).thenReturn(listOf(
             object : SubscriberPlatformRepository.PlatformParticipantsCount {
@@ -179,6 +181,7 @@ class BillingServiceTest {
         val refMonth = YearMonth.of(2026, 2)
 
         whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
         whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(assoc))
         whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L))).thenReturn(
             listOf(
@@ -188,7 +191,7 @@ class BillingServiceTest {
                 }
             )
         )
-        whenever(paymentConfirmationRepository.findBySubscriberIdAndReferenceMonthAndDeletedAtIsNull(1L, refMonth))
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(listOf(1L), refMonth))
             .thenReturn(
                 listOf(
                     PaymentConfirmation(
@@ -207,5 +210,42 @@ class BillingServiceTest {
 
         val billing = service.getBillingForSubscriber(1L, refMonth)
         assertEquals(PaymentStatus.PAID, billing.items.first().paymentStatus)
+    }
+
+    @Test
+    fun `billing aggregates responsible subscriber with covered subscribers`() {
+        val responsible = sampleSubscriber(6L).copy(name = "Responsible")
+        val coveredA = sampleSubscriber(1L).copy(name = "Covered A", financialResponsibleSubscriber = responsible)
+        val coveredB = sampleSubscriber(4L).copy(name = "Covered B", financialResponsibleSubscriber = responsible)
+        val platform = samplePlatform(20L, "1Password", BigDecimal("40.00"), BillingCycle.MONTHLY, null)
+
+        val assocResponsible = sampleAssoc(10L, responsible, platform)
+        val assocA = sampleAssoc(11L, coveredA, platform)
+        val assocB = sampleAssoc(12L, coveredB, platform)
+
+        whenever(subscriberRepository.findById(6L)).thenReturn(java.util.Optional.of(responsible))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(6L))
+            .thenReturn(listOf(coveredA, coveredB))
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(listOf(6L, 1L, 4L), YearMonth.of(2026, 3)))
+            .thenReturn(emptyList())
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(6L)).thenReturn(listOf(assocResponsible))
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(assocA))
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(4L)).thenReturn(listOf(assocB))
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(20L))).thenReturn(
+            listOf(
+                object : SubscriberPlatformRepository.PlatformParticipantsCount {
+                    override fun getPlatformId() = 20L
+                    override fun getCount() = 4L
+                }
+            )
+        )
+
+        val billing = service.getBillingForSubscriber(6L, YearMonth.of(2026, 3))
+        val item = billing.items.first()
+
+        assertEquals(BigDecimal("30.00"), billing.totalMonthlyDue)
+        assertEquals(BigDecimal("30.00"), item.userMonthlyShare)
+        assertEquals(3, item.coveredSubscribers.size)
+        assertEquals(setOf(6L, 1L, 4L), item.coveredSubscribers.map { it.subscriberId }.toSet())
     }
 }

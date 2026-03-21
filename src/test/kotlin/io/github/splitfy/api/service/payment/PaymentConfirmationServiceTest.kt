@@ -61,6 +61,7 @@ class PaymentConfirmationServiceTest {
         val association12 = association(subscriber1, platform(12L, "Spotify"))
 
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber1))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
         whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 11L)).thenReturn(association11)
         whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 12L)).thenReturn(association12)
         whenever(paymentConfirmationRepository.findBySubscriberIdAndPlatformIdAndReferenceMonthAndDeletedAtIsNull(any(), any(), any()))
@@ -90,6 +91,7 @@ class PaymentConfirmationServiceTest {
         val association = association(ownerSubscriber, netflix)
 
         whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber(id = 1L, email = "s1@example.com")))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
         whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(1L, 11L)).thenReturn(association)
         whenever(paymentConfirmationRepository.findBySubscriberIdAndPlatformIdAndReferenceMonthAndDeletedAtIsNull(any(), any(), any()))
             .thenReturn(
@@ -143,6 +145,43 @@ class PaymentConfirmationServiceTest {
                 )
             )
         }
+    }
+
+    @Test
+    fun `admin confirmation for payer also confirms covered subscribers`() {
+        setAuth("admin@splitfy.com", "ROLE_ADMIN")
+
+        val payer = subscriber(id = 6L, email = "payer@example.com")
+        val child2 = subscriber(id = 2L, email = "child2@example.com").copy(financialResponsibleSubscriber = payer)
+        val child4 = subscriber(id = 4L, email = "child4@example.com").copy(financialResponsibleSubscriber = payer)
+        val netflix = platform(11L, "Netflix")
+
+        val associationPayer = association(payer, netflix)
+        val associationChild2 = association(child2, netflix)
+        val associationChild4 = association(child4, netflix)
+
+        whenever(subscriberRepository.findById(6L)).thenReturn(Optional.of(payer))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(6L)).thenReturn(listOf(child2, child4))
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(6L, 11L)).thenReturn(associationPayer)
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(2L, 11L)).thenReturn(associationChild2)
+        whenever(subscriberPlatformRepository.findBySubscriberIdAndPlatformId(4L, 11L)).thenReturn(associationChild4)
+        whenever(paymentConfirmationRepository.findBySubscriberIdAndPlatformIdAndReferenceMonthAndDeletedAtIsNull(any(), any(), any()))
+            .thenReturn(null)
+        whenever(paymentConfirmationRepository.save(any())).thenAnswer { invocation ->
+            (invocation.arguments[0] as PaymentConfirmation).copy(id = 200L + (invocation.arguments[0] as PaymentConfirmation).subscriber.id!!)
+        }
+
+        val response = service.createAdminConfirmations(
+            subscriberId = 6L,
+            request = PaymentConfirmationPlatformsRequest(
+                referenceMonth = "2026-03",
+                platformIds = listOf(11L)
+            )
+        )
+
+        assertEquals(3, response.size)
+        assertEquals(setOf(6L, 2L, 4L), response.map { it.subscriberId }.toSet())
+        response.forEach { assertEquals(PaymentConfirmationStatus.CONFIRMED, it.status) }
     }
 
     @Test

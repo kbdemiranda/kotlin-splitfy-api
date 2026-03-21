@@ -55,10 +55,72 @@ class SubscriberServiceTest {
             subscriberToken = UUID.fromString("00000000-0000-0000-0000-000000000002"),
             name = "User",
             email = "u@example.com",
+            financialResponsibleSubscriber = null,
             createdAt = LocalDateTime.now(),
             updatedAt = null,
             deletedAt = null
         )
+    }
+
+    @Test
+    fun `create defaults financial responsible to self`() {
+        whenever(subscriberRepository.save(any())).thenAnswer { invocation ->
+            val subscriber = invocation.arguments[0] as Subscriber
+            if (subscriber.id == null) subscriber.copy(id = 1L) else subscriber
+        }
+
+        val response = service.create(
+            io.github.splitfy.api.web.subscriber.dto.SubscriberRequest(
+                name = "User",
+                email = "u@example.com"
+            )
+        )
+
+        assertEquals(1L, response.id)
+        assertEquals(1L, response.financialResponsibleSubscriberId)
+        assertEquals("User", response.financialResponsibleSubscriberName)
+    }
+
+    @Test
+    fun `create accepts explicit financial responsible`() {
+        val responsible = sampleSubscriber().copy(id = 2L, name = "Holder", email = "holder@example.com")
+        whenever(subscriberRepository.save(any())).thenAnswer { invocation ->
+            val subscriber = invocation.arguments[0] as Subscriber
+            if (subscriber.id == null) subscriber.copy(id = 1L) else subscriber
+        }
+        whenever(subscriberRepository.findById(2L)).thenReturn(Optional.of(responsible))
+
+        val response = service.create(
+            io.github.splitfy.api.web.subscriber.dto.SubscriberRequest(
+                name = "User",
+                email = "u@example.com",
+                financialResponsibleSubscriberId = 2L
+            )
+        )
+
+        assertEquals(2L, response.financialResponsibleSubscriberId)
+        assertEquals("Holder", response.financialResponsibleSubscriberName)
+    }
+
+    @Test
+    fun `update accepts explicit financial responsible`() {
+        val current = sampleSubscriber()
+        val responsible = sampleSubscriber().copy(id = 2L, name = "Holder", email = "holder@example.com")
+        whenever(subscriberRepository.findById(1L)).thenReturn(Optional.of(current))
+        whenever(subscriberRepository.findById(2L)).thenReturn(Optional.of(responsible))
+        whenever(subscriberRepository.save(any())).thenAnswer { invocation -> invocation.arguments[0] as Subscriber }
+
+        val response = service.update(
+            1L,
+            io.github.splitfy.api.web.subscriber.dto.SubscriberRequest(
+                name = "User",
+                email = "u@example.com",
+                financialResponsibleSubscriberId = 2L
+            )
+        )
+
+        assertEquals(2L, response?.financialResponsibleSubscriberId)
+        assertEquals("Holder", response?.financialResponsibleSubscriberName)
     }
 
     private fun samplePlatform(availableSlots: Int = 5, deleted: Boolean = false): Platform {

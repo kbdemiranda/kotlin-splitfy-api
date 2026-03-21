@@ -59,15 +59,27 @@ class SubscriberService(
     private val rounding = RoundingMode.HALF_UP
 
     fun create(dto: SubscriberRequest): SubscriberResponse {
-        val entity = Subscriber(
-            subscriberToken = UUID.randomUUID(),
-            name = dto.name,
-            email = dto.email,
-            createdAt = LocalDateTime.now(),
+        val saved = subscriberRepository.save(
+            Subscriber(
+                subscriberToken = UUID.randomUUID(),
+                name = dto.name,
+                email = dto.email,
+                createdAt = LocalDateTime.now(),
+            )
         )
-        val saved = subscriberRepository.save(entity)
-        log.infoEvent("crud.create", "entity" to "subscriber", "entityId" to saved.id, "entityToken" to saved.subscriberToken, "email" to saved.email)
-        return toDto(saved)
+        val responsible = resolveResponsibleForCreate(saved, dto.financialResponsibleSubscriberId)
+        val finalSubscriber = if (saved.financialResponsibleSubscriber?.id == responsible.id) {
+            saved
+        } else {
+            subscriberRepository.save(
+                saved.copy(
+                    financialResponsibleSubscriber = responsible,
+                    updatedAt = LocalDateTime.now()
+                )
+            )
+        }
+        log.infoEvent("crud.create", "entity" to "subscriber", "entityId" to finalSubscriber.id, "entityToken" to finalSubscriber.subscriberToken, "email" to finalSubscriber.email)
+        return toDto(finalSubscriber)
     }
 
     fun list(pageable: Pageable, name: String?): Page<SubscriberResponse> {
@@ -98,6 +110,7 @@ class SubscriberService(
         val updated = getSubscriber(id).copy(
             name = dto.name,
             email = dto.email,
+            financialResponsibleSubscriber = resolveResponsible(dto.financialResponsibleSubscriberId ?: id),
             updatedAt = LocalDateTime.now()
         )
         val saved = subscriberRepository.save(updated)
@@ -151,15 +164,34 @@ class SubscriberService(
             emptyList()
         }
 
+        val responsible = entity.financialResponsibleSubscriber ?: entity
         return SubscriberResponse(
             id = entity.id,
             name = entity.name,
             email = entity.email,
+            financialResponsibleSubscriberId = responsible.id,
+            financialResponsibleSubscriberName = responsible.name,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
             deletedAt = entity.deletedAt,
             subscriptions = subscriptions
         )
+    }
+
+    private fun resolveResponsibleForCreate(saved: Subscriber, requestedResponsibleId: Long?): Subscriber {
+        if (requestedResponsibleId == null || requestedResponsibleId == saved.id) {
+            return saved
+        }
+        return resolveResponsible(requestedResponsibleId)
+    }
+
+    private fun resolveResponsible(responsibleId: Long): Subscriber {
+        val responsible = subscriberRepository.findById(responsibleId)
+            .orElseThrow { ResourceNotFoundApiException("Financial responsible subscriber not found with id: $responsibleId") }
+        if (responsible.deletedAt != null) {
+            throw ResourceNotFoundApiException("Financial responsible subscriber not found with id: $responsibleId")
+        }
+        return responsible
     }
 
     @PreAuthorize("hasRole('ADMIN') or (hasRole('EDITOR') and @subscriberSecurity.isOwner(#id, authentication.name))")

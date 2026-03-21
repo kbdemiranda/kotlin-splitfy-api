@@ -15,6 +15,11 @@ interface PaymentConfirmationRepository : JpaRepository<PaymentConfirmation, Lon
         referenceMonth: YearMonth
     ): List<PaymentConfirmation>
 
+    fun findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(
+        subscriberIds: List<Long>,
+        referenceMonth: YearMonth
+    ): List<PaymentConfirmation>
+
     fun findBySubscriberIdAndPlatformIdAndReferenceMonthAndDeletedAtIsNull(
         subscriberId: Long,
         platformId: Long,

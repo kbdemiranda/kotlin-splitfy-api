@@ -14,6 +14,12 @@ data class SubscriberResponse(
     @Schema(description = "Subscriber email")
     val email: String,
 
+    @Schema(description = "Financial responsible subscriber id")
+    val financialResponsibleSubscriberId: Long?,
+
+    @Schema(description = "Financial responsible subscriber name")
+    val financialResponsibleSubscriberName: String?,
+
     @Schema(description = "Created at")
     val createdAt: LocalDateTime,
 

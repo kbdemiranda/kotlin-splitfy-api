@@ -45,27 +45,33 @@ class PaymentConfirmationService(
         val actorEmail = currentUserEmail()
         val referenceMonth = parseReferenceMonth(request.referenceMonth)
         val subscriber = loadSubscriber(subscriberId)
+        val coveredSubscribers = subscriberRepository
+            .findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(subscriber.id!!)
+            .filter { it.id != subscriber.id }
+        val billedSubscribers = (listOf(subscriber) + coveredSubscribers)
+            .distinctBy { it.id }
 
         val confirmations = request.platformIds
             .distinct()
-            .map { platformId ->
-                val association = subscriberPlatformRepository.findBySubscriberIdAndPlatformId(subscriber.id!!, platformId)
-                    ?: throw BadRequestApiException(
-                        "Subscriber ${subscriber.id} is not associated with platform id: $platformId"
-                    )
-
-                if (!association.isActive || association.deletedAt != null || association.platform.deletedAt != null) {
+            .flatMap { platformId ->
+                val targetAssociations = billedSubscribers.mapNotNull { billedSubscriber ->
+                    subscriberPlatformRepository.findBySubscriberIdAndPlatformId(billedSubscriber.id!!, platformId)
+                        ?.takeIf { it.isActive && it.deletedAt == null && it.platform.deletedAt == null }
+                }
+                if (targetAssociations.isEmpty()) {
                     throw BadRequestApiException(
-                        "Subscriber ${subscriber.id} is not actively associated with platform id: $platformId"
+                        "No billed subscribers associated with platform id: $platformId"
                     )
                 }
 
-                val upserted = upsertConfirmation(
-                    actorEmail = actorEmail,
-                    referenceMonth = referenceMonth,
-                    association = association
-                )
-                toResponse(upserted)
+                targetAssociations.map { association ->
+                    val upserted = upsertConfirmation(
+                        actorEmail = actorEmail,
+                        referenceMonth = referenceMonth,
+                        association = association
+                    )
+                    toResponse(upserted)
+                }
             }
         log.infoEvent("payment.confirmation.bulk-upsert", "entity" to "payment_confirmation", "subscriberId" to subscriber.id, "referenceMonth" to referenceMonth, "count" to confirmations.size, "requestedBy" to actorEmail)
         return confirmations

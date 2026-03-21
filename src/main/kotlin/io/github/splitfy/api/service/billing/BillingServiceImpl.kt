@@ -11,6 +11,7 @@ import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.repository.SubscriberRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
+import io.github.splitfy.api.web.billing.dto.BillingCoveredSubscriberItemDto
 import io.github.splitfy.api.web.billing.dto.BillingItemDto
 import io.github.splitfy.api.web.billing.dto.BillingResponse
 import io.github.splitfy.api.web.billing.dto.Currency
@@ -39,12 +40,17 @@ class BillingServiceImpl(
             .orElseThrow { ResourceNotFoundApiException("Subscriber not found with id: $subscriberId") }
 
         val refMonth = referenceMonth ?: YearMonth.now()
-        val confirmationsByPlatformId = paymentConfirmationRepository
-            .findBySubscriberIdAndReferenceMonthAndDeletedAtIsNull(subscriberId, refMonth)
-            .associateBy { it.platform.id!! }
+        val coveredSubscribers = subscriberRepository
+            .findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(subscriberId)
+            .filter { it.id != subscriberId }
+        val billedSubscribers = listOf(subscriber) + coveredSubscribers
+        val billedSubscriberIds = billedSubscribers.mapNotNull { it.id }.distinct()
+        val confirmationsByKey = paymentConfirmationRepository
+            .findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(billedSubscriberIds, refMonth)
+            .associateBy { ConfirmationKey(it.subscriber.id!!, it.platform.id!!) }
 
-        // load active associations with platforms (avoid N+1)
-        val associations = subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(subscriberId)
+        val associations = billedSubscriberIds
+            .flatMap { billedSubscriberId -> subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(billedSubscriberId) }
         if (associations.isEmpty()) {
             return BillingResponse(
                 userId = subscriberId,
@@ -57,18 +63,19 @@ class BillingServiceImpl(
             )
         }
 
-        val platformIds = associations.map { it.platform.id!! }
+        val platformIds = associations.map { it.platform.id!! }.distinct()
         val counts = subscriberPlatformRepository.countActiveParticipantsByPlatformIds(platformIds)
         val countsByPlatform = counts.associateBy { it.getPlatformId() }
         val ratesByCurrency = loadRatesForForeignCurrencies(associations.map { it.platform.currency }.distinct())
 
-        // build only items that should be shown for the reference month
-        val itemsWithInclude = associations.mapNotNull { assoc ->
-            val platform = assoc.platform
+        val itemsWithInclude = associations
+            .groupBy { it.platform.id!! }
+            .values
+            .mapNotNull { platformAssociations ->
+                val platform = platformAssociations.first().platform
             val participantsCount = countsByPlatform[platform.id!!]?.getCount() ?: 0L
 
             if (participantsCount == 0L) {
-                // skip from items/results per requirement
                 null
             } else {
                 val includeInMonth = shouldIncludeInMonth(
@@ -99,6 +106,28 @@ class BillingServiceImpl(
                         .setScale(FINAL_SCALE, ROUNDING)
                 }
 
+                val coveredSubscriberItems = platformAssociations.map { assoc ->
+                    val status = toPaymentStatus(
+                        confirmationsByKey[ConfirmationKey(assoc.subscriber.id!!, platform.id!!)]
+                    )
+                    BillingCoveredSubscriberItemDto(
+                        subscriberId = assoc.subscriber.id!!,
+                        subscriberName = assoc.subscriber.name,
+                        monthlyShare = userShare,
+                        monthlyShareOriginal = userShareOriginal,
+                        paymentStatus = status
+                    )
+                }
+                val aggregatedStatus = aggregatePaymentStatus(coveredSubscriberItems.map { it.paymentStatus })
+                val aggregatedShare = coveredSubscriberItems.fold(BigDecimal.ZERO) { acc, item -> acc.add(item.monthlyShare) }
+                    .setScale(FINAL_SCALE, ROUNDING)
+                val aggregatedShareOriginal = if (userShareOriginal == null) {
+                    null
+                } else {
+                    coveredSubscriberItems.fold(BigDecimal.ZERO) { acc, item -> acc.add(item.monthlyShareOriginal ?: BigDecimal.ZERO) }
+                        .setScale(FINAL_SCALE, ROUNDING)
+                }
+
                 val item = BillingItemDto(
                     serviceId = platform.id!!,
                     serviceName = platform.name,
@@ -106,12 +135,13 @@ class BillingServiceImpl(
                     serviceCurrency = platform.currency.name,
                     serviceMonthlyAmount = serviceAmount,
                     participantsCount = participantsCount.toInt(),
-                    userMonthlyShare = userShare,
+                    userMonthlyShare = aggregatedShare,
                     serviceMonthlyAmountOriginal = if (platform.currency == PlatformCurrency.BRL) null else price.setScale(FINAL_SCALE, ROUNDING),
-                    userMonthlyShareOriginal = userShareOriginal,
+                    userMonthlyShareOriginal = aggregatedShareOriginal,
                     exchangeRateToBrl = exchangeQuote?.rateToBrl,
                     exchangeRateDate = exchangeQuote?.quotedAt?.toLocalDate(),
-                    paymentStatus = toPaymentStatus(confirmationsByPlatformId[platform.id])
+                    paymentStatus = aggregatedStatus,
+                    coveredSubscribers = coveredSubscriberItems
                 )
 
                 Pair(item, true)
@@ -155,6 +185,19 @@ class BillingServiceImpl(
         }
     }
 
+    private fun aggregatePaymentStatus(statuses: List<PaymentStatus>): PaymentStatus {
+        if (statuses.isEmpty()) {
+            return PaymentStatus.UNPAID
+        }
+        if (statuses.all { it == PaymentStatus.PAID }) {
+            return PaymentStatus.PAID
+        }
+        if (statuses.any { it == PaymentStatus.PENDING }) {
+            return PaymentStatus.PENDING
+        }
+        return PaymentStatus.UNPAID
+    }
+
     private fun shouldIncludeInMonth(cycle: BillingCycle, billingMonth: Int?, referenceMonth: Int): Boolean {
         return when (cycle) {
             BillingCycle.MONTHLY -> true
@@ -162,4 +205,9 @@ class BillingServiceImpl(
             BillingCycle.ANNUAL -> billingMonth != null && billingMonth == referenceMonth
         }
     }
+
+    private data class ConfirmationKey(
+        val subscriberId: Long,
+        val platformId: Long
+    )
 }
