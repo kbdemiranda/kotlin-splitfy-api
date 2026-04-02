@@ -10,13 +10,13 @@ spring:
       enabled: true
   jpa:
     hibernate:
-      ddl-auto: none
-    generate-ddl: false
+      ddl-auto: create-drop
+    generate-ddl: true
     show-sql: false
     properties:
       hibernate:
         hbm2ddl:
-          auto: none
+          auto: create-drop
   flyway:
     enabled: false
   sql:

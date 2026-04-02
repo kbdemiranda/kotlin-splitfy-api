@@ -11,6 +11,7 @@ import io.github.splitfy.api.security.TokenBlacklistService
 import io.github.splitfy.api.service.email.EmailService
 import io.github.splitfy.api.service.email.EmailTemplateService
 import io.github.splitfy.api.web.auth.dto.ForgotPasswordRequest
+import io.github.splitfy.api.web.auth.dto.LoginRequest
 import io.github.splitfy.api.web.auth.dto.ResetPasswordRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -25,8 +26,12 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.authentication.DisabledException
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.crypto.password.PasswordEncoder
+import java.time.Instant
 import java.time.LocalDateTime
+import java.util.Date
 import java.util.UUID
 
 class AuthServiceTest {
@@ -53,6 +58,65 @@ class AuthServiceTest {
         resetTokenExpirationMinutes = 15,
         resetTokenMaxAttempts = 5,
     )
+
+    @Test
+    fun `login returns response when credentials are valid`() {
+        val request = LoginRequest(email = "test@example.com", password = "Password123")
+        val user = activeUser(email = "test@example.com")
+
+        whenever(authenticationManager.authenticate(any())).thenReturn(UsernamePasswordAuthenticationToken(user, null))
+        whenever(userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("test@example.com")).thenReturn(user)
+        whenever(jwtService.generateToken(user)).thenReturn("mocked-jwt-token")
+
+        val response = service.login(request)
+
+        assertEquals("mocked-jwt-token", response.token)
+        assertEquals(user.id, response.userId)
+        assertEquals(user.email, response.email)
+        verify(authenticationManager).authenticate(argThat {
+            (this as UsernamePasswordAuthenticationToken).principal == "test@example.com" &&
+                this.credentials == "Password123"
+        })
+    }
+
+    @Test
+    fun `login throws UnauthorizedApiException when credentials are invalid`() {
+        val request = LoginRequest(email = "test@example.com", password = "WrongPassword")
+
+        whenever(authenticationManager.authenticate(any())).thenThrow(org.springframework.security.authentication.BadCredentialsException("Invalid credentials"))
+
+        val ex = assertThrows(io.github.splitfy.api.exception.UnauthorizedApiException::class.java) {
+            service.login(request)
+        }
+
+        assertEquals("Invalid email or password", ex.message)
+    }
+
+    @Test
+    fun `login throws UnauthorizedApiException with specific code when user is disabled`() {
+        val request = LoginRequest(email = "disabled@example.com", password = "Password123")
+
+        whenever(authenticationManager.authenticate(any())).thenThrow(DisabledException("User is disabled"))
+
+        val ex = assertThrows(io.github.splitfy.api.exception.UnauthorizedApiException::class.java) {
+            service.login(request)
+        }
+
+        assertEquals("User is disabled", ex.message)
+        assertEquals("ACCOUNT_DISABLED", ex.code)
+    }
+
+    @Test
+    fun `logout blacklists the token`() {
+        val token = "some-jwt-token"
+        val expirationDate = Instant.now().plusSeconds(3600)
+
+        whenever(jwtService.extractExpiration(token)).thenReturn(expirationDate)
+
+        service.logout(token)
+
+        verify(tokenBlacklistService).blacklist(token, expirationDate)
+    }
 
     @Test
     fun `forgotPassword creates token and sends email when user exists and is enabled`() {
