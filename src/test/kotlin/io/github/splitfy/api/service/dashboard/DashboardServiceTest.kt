@@ -222,6 +222,39 @@ class DashboardServiceTest {
         assertEquals(BigDecimal("0.00"), response.debtors[1].unpaidAmount)
     }
 
+    @Test
+    fun `getKpis ignores associations before they start to avoid retroactive debt`() {
+        val refMonth = YearMonth.of(2026, 2)
+        val subscriber = subscriber(1L, "a@example.com")
+        val platform = platform(
+            id = 10L,
+            name = "Netflix",
+            price = BigDecimal("20.00"),
+            currency = Currency.BRL,
+            billingCycle = BillingCycle.MONTHLY,
+            billingDate = null
+        )
+
+        whenever(subscriberPlatformRepository.findAllActiveWithSubscriberAndPlatform()).thenReturn(
+            listOf(
+                assoc(
+                    id = 1L,
+                    subscriber = subscriber,
+                    platform = platform,
+                    subscribedAt = LocalDateTime.of(2026, 3, 5, 8, 0)
+                )
+            )
+        )
+        whenever(paymentConfirmationRepository.findByReferenceMonthAndDeletedAtIsNull(refMonth)).thenReturn(emptyList())
+
+        val response = service.getKpis(refMonth)
+
+        assertEquals(BigDecimal("0.00"), response.totalDue)
+        assertEquals(BigDecimal("0.00"), response.totalPending)
+        assertEquals(0, response.pendingByPlatform.size)
+        assertEquals(0, response.debtors.size)
+    }
+
     private fun subscriber(id: Long, email: String): Subscriber {
         return Subscriber(
             id = id,
@@ -258,12 +291,17 @@ class DashboardServiceTest {
         )
     }
 
-    private fun assoc(id: Long, subscriber: Subscriber, platform: Platform): SubscriberPlatform {
+    private fun assoc(
+        id: Long,
+        subscriber: Subscriber,
+        platform: Platform,
+        subscribedAt: LocalDateTime = LocalDateTime.of(2025, 1, 1, 0, 0)
+    ): SubscriberPlatform {
         return SubscriberPlatform(
             id = id,
             subscriber = subscriber,
             platform = platform,
-            subscribedAt = LocalDateTime.now(),
+            subscribedAt = subscribedAt,
             isActive = true,
             createdAt = LocalDateTime.now(),
         )

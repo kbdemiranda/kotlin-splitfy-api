@@ -4,6 +4,7 @@ import io.github.splitfy.api.domain.enums.Currency as PlatformCurrency
 import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus
 import io.github.splitfy.api.domain.entity.PaymentConfirmation
+import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.exception.BadRequestApiException
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.PaymentConfirmationRepository
@@ -49,8 +50,25 @@ class BillingServiceImpl(
             .findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(billedSubscriberIds, refMonth)
             .associateBy { ConfirmationKey(it.subscriber.id!!, it.platform.id!!) }
 
-        val associations = billedSubscriberIds
+        val allAssociations = billedSubscriberIds
             .flatMap { billedSubscriberId -> subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(billedSubscriberId) }
+        if (allAssociations.isEmpty()) {
+            return BillingResponse(
+                userId = subscriberId,
+                name = subscriber.name,
+                email = subscriber.email,
+                referenceMonth = refMonth,
+                currency = Currency.BRL,
+                items = emptyList<BillingItemDto>(),
+                totalMonthlyDue = BigDecimal.ZERO.setScale(FINAL_SCALE, ROUNDING)
+            )
+        }
+
+        val associations = filterAssociationsForReferenceMonth(
+            associations = allAssociations,
+            referenceMonth = refMonth,
+            confirmationsByKey = confirmationsByKey
+        )
         if (associations.isEmpty()) {
             return BillingResponse(
                 userId = subscriberId,
@@ -204,6 +222,76 @@ class BillingServiceImpl(
             BillingCycle.SEMI_ANNUAL -> false
             BillingCycle.ANNUAL -> billingMonth != null && billingMonth == referenceMonth
         }
+    }
+
+    private fun filterAssociationsForReferenceMonth(
+        associations: List<SubscriberPlatform>,
+        referenceMonth: YearMonth,
+        confirmationsByKey: Map<ConfirmationKey, PaymentConfirmation>
+    ): List<SubscriberPlatform> {
+        val settledSubscribers = settledSubscribersInReferenceMonth(associations, referenceMonth, confirmationsByKey)
+
+        return associations.filter { association ->
+            if (!isActiveInReferenceMonth(association, referenceMonth)) {
+                return@filter false
+            }
+            if (!shouldIncludeInMonth(
+                    cycle = association.platform.billingCycle,
+                    billingMonth = association.platform.billingDate?.monthValue,
+                    referenceMonth = referenceMonth.monthValue
+                )
+            ) {
+                return@filter false
+            }
+
+            val associationMonth = YearMonth.from(association.subscribedAt)
+            when {
+                associationMonth.isBefore(referenceMonth) -> true
+                associationMonth.isAfter(referenceMonth) -> false
+                else -> {
+                    val subscriberId = association.subscriber.id ?: return@filter false
+                    !(settledSubscribers[subscriberId] ?: false)
+                }
+            }
+        }
+    }
+
+    private fun settledSubscribersInReferenceMonth(
+        associations: List<SubscriberPlatform>,
+        referenceMonth: YearMonth,
+        confirmationsByKey: Map<ConfirmationKey, PaymentConfirmation>
+    ): Map<Long, Boolean> {
+        return associations
+            .groupBy { it.subscriber.id!! }
+            .mapValues { (subscriberId, subscriberAssociations) ->
+                val previousMonthAssociations = subscriberAssociations.filter { association ->
+                    val associationMonth = YearMonth.from(association.subscribedAt)
+                    associationMonth.isBefore(referenceMonth) &&
+                        isActiveInReferenceMonth(association, referenceMonth) &&
+                        shouldIncludeInMonth(
+                            cycle = association.platform.billingCycle,
+                            billingMonth = association.platform.billingDate?.monthValue,
+                            referenceMonth = referenceMonth.monthValue
+                        )
+                }
+
+                previousMonthAssociations.isNotEmpty() && previousMonthAssociations.all { association ->
+                    confirmationsByKey[ConfirmationKey(subscriberId, association.platform.id!!)]?.status ==
+                        PaymentConfirmationStatus.CONFIRMED
+                }
+            }
+    }
+
+    private fun isActiveInReferenceMonth(
+        association: SubscriberPlatform,
+        referenceMonth: YearMonth
+    ): Boolean {
+        val monthStart = referenceMonth.atDay(1).atStartOfDay()
+        val monthEndExclusive = referenceMonth.plusMonths(1).atDay(1).atStartOfDay()
+        val activeFrom = association.subscribedAt
+        val activeUntil = association.unsubscribedAt
+        return activeFrom.isBefore(monthEndExclusive) &&
+            (activeUntil == null || activeUntil.isAfter(monthStart))
     }
 
     private data class ConfirmationKey(

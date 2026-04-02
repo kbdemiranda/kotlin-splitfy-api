@@ -81,12 +81,17 @@ class BillingServiceTest {
         )
     }
 
-    private fun sampleAssoc(id: Long, subscriber: Subscriber, platform: Platform): SubscriberPlatform {
+    private fun sampleAssoc(
+        id: Long,
+        subscriber: Subscriber,
+        platform: Platform,
+        subscribedAt: LocalDateTime = LocalDateTime.of(2025, 1, 1, 0, 0)
+    ): SubscriberPlatform {
         return SubscriberPlatform(
             id = id,
             subscriber = subscriber,
             platform = platform,
-            subscribedAt = LocalDateTime.now(),
+            subscribedAt = subscribedAt,
             isActive = true,
             createdAt = LocalDateTime.now()
         )
@@ -108,6 +113,9 @@ class BillingServiceTest {
         whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L, 3L))).thenReturn(listOf(
             object : SubscriberPlatformRepository.PlatformParticipantsCount { override fun getPlatformId() = 2L; override fun getCount() = 2L },
             object : SubscriberPlatformRepository.PlatformParticipantsCount { override fun getPlatformId() = 3L; override fun getCount() = 3L }
+        ))
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L))).thenReturn(listOf(
+            object : SubscriberPlatformRepository.PlatformParticipantsCount { override fun getPlatformId() = 2L; override fun getCount() = 2L }
         ))
 
         // reference month = January (office billing month) => total should include office monthly share
@@ -247,5 +255,98 @@ class BillingServiceTest {
         assertEquals(BigDecimal("30.00"), item.userMonthlyShare)
         assertEquals(3, item.coveredSubscribers.size)
         assertEquals(setOf(6L, 1L, 4L), item.coveredSubscribers.map { it.subscriberId }.toSet())
+    }
+
+    @Test
+    fun `does not generate retroactive debt before association month`() {
+        val subscriber = sampleSubscriber(1L)
+        val netflix = samplePlatform(2L, "Netflix", BigDecimal("10.00"), BillingCycle.MONTHLY, null)
+        val associationMonth = LocalDateTime.of(2026, 3, 10, 14, 0)
+        val assoc = sampleAssoc(1L, subscriber, netflix, subscribedAt = associationMonth)
+
+        whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(listOf(1L), YearMonth.of(2026, 2)))
+            .thenReturn(emptyList())
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(assoc))
+
+        val billing = service.getBillingForSubscriber(1L, YearMonth.of(2026, 2))
+
+        assertEquals(BigDecimal("0.00"), billing.totalMonthlyDue)
+        assertEquals(0, billing.items.size)
+    }
+
+    @Test
+    fun `association month starts next cycle when current month is already fully paid`() {
+        val subscriber = sampleSubscriber(1L)
+        val oldPlatform = samplePlatform(2L, "Old", BigDecimal("10.00"), BillingCycle.MONTHLY, null)
+        val newPlatform = samplePlatform(3L, "New", BigDecimal("20.00"), BillingCycle.MONTHLY, null)
+        val refMonth = YearMonth.of(2026, 3)
+        val oldAssoc = sampleAssoc(1L, subscriber, oldPlatform, subscribedAt = LocalDateTime.of(2026, 1, 1, 0, 0))
+        val newAssoc = sampleAssoc(2L, subscriber, newPlatform, subscribedAt = LocalDateTime.of(2026, 3, 10, 14, 0))
+
+        whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(oldAssoc, newAssoc))
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L))).thenReturn(
+            listOf(
+                object : SubscriberPlatformRepository.PlatformParticipantsCount {
+                    override fun getPlatformId() = 2L
+                    override fun getCount() = 2L
+                }
+            )
+        )
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(listOf(1L), refMonth))
+            .thenReturn(
+                listOf(
+                    PaymentConfirmation(
+                        id = 1L,
+                        subscriber = subscriber,
+                        platform = oldPlatform,
+                        referenceMonth = refMonth,
+                        status = PaymentConfirmationStatus.CONFIRMED,
+                        requestedByEmail = "admin@splitfy.com",
+                        requestedAt = LocalDateTime.now(),
+                        validatedByEmail = "admin@splitfy.com",
+                        validatedAt = LocalDateTime.now()
+                    )
+                )
+            )
+
+        val billing = service.getBillingForSubscriber(1L, refMonth)
+
+        assertEquals(setOf(2L), billing.items.map { it.serviceId }.toSet())
+    }
+
+    @Test
+    fun `association month charges immediately when current month still has open debt`() {
+        val subscriber = sampleSubscriber(1L)
+        val oldPlatform = samplePlatform(2L, "Old", BigDecimal("10.00"), BillingCycle.MONTHLY, null)
+        val newPlatform = samplePlatform(3L, "New", BigDecimal("20.00"), BillingCycle.MONTHLY, null)
+        val refMonth = YearMonth.of(2026, 3)
+        val oldAssoc = sampleAssoc(1L, subscriber, oldPlatform, subscribedAt = LocalDateTime.of(2026, 1, 1, 0, 0))
+        val newAssoc = sampleAssoc(2L, subscriber, newPlatform, subscribedAt = LocalDateTime.of(2026, 3, 10, 14, 0))
+
+        whenever(subscriberRepository.findById(1L)).thenReturn(java.util.Optional.of(subscriber))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(emptyList())
+        whenever(subscriberPlatformRepository.findActiveBySubscriberIdWithPlatform(1L)).thenReturn(listOf(oldAssoc, newAssoc))
+        whenever(subscriberPlatformRepository.countActiveParticipantsByPlatformIds(listOf(2L, 3L))).thenReturn(
+            listOf(
+                object : SubscriberPlatformRepository.PlatformParticipantsCount {
+                    override fun getPlatformId() = 2L
+                    override fun getCount() = 2L
+                },
+                object : SubscriberPlatformRepository.PlatformParticipantsCount {
+                    override fun getPlatformId() = 3L
+                    override fun getCount() = 2L
+                }
+            )
+        )
+        whenever(paymentConfirmationRepository.findBySubscriberIdInAndReferenceMonthAndDeletedAtIsNull(listOf(1L), refMonth))
+            .thenReturn(emptyList())
+
+        val billing = service.getBillingForSubscriber(1L, refMonth)
+
+        assertEquals(setOf(2L, 3L), billing.items.map { it.serviceId }.toSet())
     }
 }
