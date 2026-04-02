@@ -417,6 +417,150 @@ class SubscriberServiceTest {
     }
 
     @Test
+    fun `sendBillingSummaryToEmails includes responsible context for responsible recipient only`() {
+        val responsible = sampleSubscriber().copy(name = "Kaique", email = "kaique@example.com")
+        val dependent = sampleSubscriber().copy(
+            id = 2L,
+            name = "Ana",
+            email = "ana@example.com",
+            financialResponsibleSubscriber = responsible
+        )
+        val referenceMonth = YearMonth.of(2026, 4)
+
+        whenever(subscriberRepository.findAllById(listOf(1L, 2L))).thenReturn(listOf(responsible, dependent))
+        whenever(billingService.getBillingForSubscriber(eq(1L), any())).thenReturn(
+            BillingResponse(
+                userId = 1L,
+                name = responsible.name,
+                email = responsible.email,
+                referenceMonth = referenceMonth,
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("10.00"),
+                currency = Currency.BRL
+            )
+        )
+        whenever(billingService.getBillingForSubscriber(eq(2L), any())).thenReturn(
+            BillingResponse(
+                userId = 2L,
+                name = dependent.name,
+                email = dependent.email,
+                referenceMonth = referenceMonth,
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("20.00"),
+                currency = Currency.BRL
+            )
+        )
+
+        val request = SubscriberBillingEmailRequest(
+            subscriberIds = listOf(1L, 2L),
+            emails = listOf("kaique@example.com", "finance@splitfy.com"),
+            referenceMonth = "2026-04"
+        )
+
+        service.sendBillingSummaryToEmails(request)
+
+        val responsibleHtml = argumentCaptor<String>()
+        verify(emailService).sendHtml(
+            eq("kaique@example.com"),
+            any(),
+            responsibleHtml.capture(),
+            argThat { containsKey("pixQrCode") }
+        )
+        assertTrue(responsibleHtml.firstValue.contains("Este resumo inclui cobranças de"))
+        assertTrue(responsibleHtml.firstValue.contains("Kaique, Ana"))
+
+        val financeHtml = argumentCaptor<String>()
+        verify(emailService).sendHtml(
+            eq("finance@splitfy.com"),
+            any(),
+            financeHtml.capture(),
+            argThat { containsKey("pixQrCode") }
+        )
+        assertTrue(!financeHtml.firstValue.contains("Este resumo inclui cobranças de"))
+    }
+
+    @Test
+    fun `sendBillingSummaryToEmails expands selected responsible subscriber to covered subscribers`() {
+        val responsible = sampleSubscriber().copy(id = 1L, name = "Kaique", email = "kaique@example.com")
+        val dependent1 = sampleSubscriber().copy(
+            id = 2L,
+            name = "Luci",
+            email = "luci@example.com",
+            financialResponsibleSubscriber = responsible
+        )
+        val dependent2 = sampleSubscriber().copy(
+            id = 3L,
+            name = "Tamires",
+            email = "tamires@example.com",
+            financialResponsibleSubscriber = responsible
+        )
+        val referenceMonth = YearMonth.of(2026, 4)
+
+        whenever(subscriberRepository.findAllById(listOf(1L))).thenReturn(listOf(responsible))
+        whenever(subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(1L)).thenReturn(
+            listOf(responsible, dependent1, dependent2)
+        )
+        whenever(billingService.getBillingForSubscriber(eq(1L), any())).thenReturn(
+            BillingResponse(
+                userId = 1L,
+                name = responsible.name,
+                email = responsible.email,
+                referenceMonth = referenceMonth,
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("94.62"),
+                currency = Currency.BRL
+            )
+        )
+        whenever(billingService.getBillingForSubscriber(eq(2L), any())).thenReturn(
+            BillingResponse(
+                userId = 2L,
+                name = dependent1.name,
+                email = dependent1.email,
+                referenceMonth = referenceMonth,
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("13.12"),
+                currency = Currency.BRL
+            )
+        )
+        whenever(billingService.getBillingForSubscriber(eq(3L), any())).thenReturn(
+            BillingResponse(
+                userId = 3L,
+                name = dependent2.name,
+                email = dependent2.email,
+                referenceMonth = referenceMonth,
+                items = emptyList(),
+                totalMonthlyDue = BigDecimal("23.89"),
+                currency = Currency.BRL
+            )
+        )
+
+        val request = SubscriberBillingEmailRequest(
+            subscriberIds = listOf(1L),
+            emails = listOf("kaique@example.com"),
+            referenceMonth = "2026-04"
+        )
+
+        service.sendBillingSummaryToEmails(request)
+
+        verify(billingService).getBillingForSubscriber(1L, referenceMonth)
+        verify(billingService).getBillingForSubscriber(2L, referenceMonth)
+        verify(billingService).getBillingForSubscriber(3L, referenceMonth)
+
+        val htmlCaptor = argumentCaptor<String>()
+        verify(emailService).sendHtml(
+            eq("kaique@example.com"),
+            any(),
+            htmlCaptor.capture(),
+            argThat { containsKey("pixQrCode") }
+        )
+        val normalizedHtml = htmlCaptor.firstValue.replace(Regex("\\s+"), " ")
+        assertTrue(normalizedHtml.contains("Assinantes no resumo: <strong>3</strong>"))
+        assertTrue(htmlCaptor.firstValue.contains("R$ 94.62"))
+        assertTrue(!htmlCaptor.firstValue.contains("R$ 131.63"))
+        assertTrue(htmlCaptor.firstValue.contains("Kaique"))
+    }
+
+    @Test
     fun `sendBillingSummaryToEmails with empty subscriber ids throws BadRequestApiException`() {
         val request = SubscriberBillingEmailRequest(subscriberIds = emptyList(), emails = listOf("owner@splitfy.com"))
 

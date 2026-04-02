@@ -322,13 +322,16 @@ class SubscriberService(
             throw ResourceNotFoundApiException("Subscribers not found with ids: ${deletedSubscriberIds.joinToString(", ")}")
         }
 
-        val billingBySubscriber = subscriberIds.map { subscriberId ->
-            val subscriber = subscribersById[subscriberId]!!
-            Pair(subscriber, billingService.getBillingForSubscriber(subscriberId, referenceMonth))
+        val expandedSubscribers = expandSubscribersForBilling(
+            selectedSubscriberIds = subscriberIds,
+            selectedSubscribersById = subscribersById
+        )
+
+        val billingBySubscriber = expandedSubscribers.map { subscriber ->
+            Pair(subscriber, billingService.getBillingForSubscriber(subscriber.id!!, referenceMonth))
         }
 
         val subject = "Resumo de cobranças Splitfy - $referenceMonth"
-        val htmlBody = buildBillingSummaryHtml(billingBySubscriber, referenceMonth)
         val inlineResources = mapOf(
             PIX_QR_CODE_CONTENT_ID to EmailService.InlineResource(
                 source = ByteArrayResource(generatePixQrCodePng(pixCopyPaste)),
@@ -337,6 +340,15 @@ class SubscriberService(
         )
 
         emails.forEach { email ->
+            val responsibleContext = buildResponsibleContextForRecipient(
+                recipientEmail = email,
+                subscribers = billingBySubscriber.map { it.first }
+            )
+            val htmlBody = buildBillingSummaryHtml(
+                billingBySubscriber = billingBySubscriber,
+                referenceMonth = referenceMonth,
+                responsibleContext = responsibleContext
+            )
             emailService.sendHtml(
                 to = email,
                 subject = subject,
@@ -359,11 +371,14 @@ class SubscriberService(
 
     private fun buildBillingSummaryHtml(
         billingBySubscriber: List<Pair<Subscriber, BillingResponse>>,
-        referenceMonth: YearMonth
+        referenceMonth: YearMonth,
+        responsibleContext: BillingSummaryResponsibleContext?
     ): String {
         val referenceLabel = referenceMonth.format(REFERENCE_MONTH_FORMATTER)
+        val visibleBillingBySubscriber = reduceDuplicatedResponsibleSummaries(billingBySubscriber)
+        val subscriberCount = responsibleContext?.coveredSubscribers?.size ?: visibleBillingBySubscriber.size
         var grandTotal = BigDecimal.ZERO.setScale(finalScale, rounding)
-        val subscribers = billingBySubscriber.map { (subscriber, billing) ->
+        val subscribers = visibleBillingBySubscriber.map { (subscriber, billing) ->
             grandTotal = grandTotal.add(billing.totalMonthlyDue).setScale(finalScale, rounding)
 
             BillingSummarySubscriber(
@@ -386,13 +401,94 @@ class SubscriberService(
             variables = mapOf(
                 "preheader" to "Resumo de cobrancas Splitfy - $referenceLabel",
                 "referenceMonth" to referenceLabel,
-                "subscriberCount" to subscribers.size,
+                "subscriberCount" to subscriberCount,
                 "subscribers" to subscribers,
                 "grandTotal" to formatCurrency(grandTotal),
+                "responsibleContext" to responsibleContext,
                 "pixKey" to pixKey,
                 "pixQrCodeCid" to PIX_QR_CODE_CONTENT_ID
             )
         )
+    }
+
+    private fun reduceDuplicatedResponsibleSummaries(
+        billingBySubscriber: List<Pair<Subscriber, BillingResponse>>
+    ): List<Pair<Subscriber, BillingResponse>> {
+        val groups = billingBySubscriber.groupBy { (subscriber, _) ->
+            (subscriber.financialResponsibleSubscriber ?: subscriber).id
+        }
+        val replacedGroups = mutableSetOf<Long>()
+        val reduced = mutableListOf<Pair<Subscriber, BillingResponse>>()
+
+        billingBySubscriber.forEach { pair ->
+            val (subscriber, _) = pair
+            val responsibleId = (subscriber.financialResponsibleSubscriber ?: subscriber).id
+            if (responsibleId == null) {
+                reduced += pair
+                return@forEach
+            }
+
+            val group = groups[responsibleId].orEmpty()
+            val responsiblePair = group.firstOrNull { (groupSubscriber, _) -> groupSubscriber.id == responsibleId }
+            val hasConsolidatedResponsible = group.size > 1 && responsiblePair != null
+
+            if (!hasConsolidatedResponsible) {
+                reduced += pair
+                return@forEach
+            }
+
+            if (replacedGroups.add(responsibleId)) {
+                reduced += responsiblePair!!
+            }
+        }
+
+        return reduced
+    }
+
+    private fun buildResponsibleContextForRecipient(
+        recipientEmail: String,
+        subscribers: List<Subscriber>
+    ): BillingSummaryResponsibleContext? {
+        val normalizedRecipient = recipientEmail.trim().lowercase()
+        if (normalizedRecipient.isBlank()) return null
+
+        val coveredSubscribers = subscribers.filter { subscriber ->
+            val responsible = subscriber.financialResponsibleSubscriber ?: subscriber
+            responsible.email.trim().lowercase() == normalizedRecipient
+        }
+        if (coveredSubscribers.size <= 1) return null
+
+        val responsibleName = (coveredSubscribers.first().financialResponsibleSubscriber ?: coveredSubscribers.first()).name
+        return BillingSummaryResponsibleContext(
+            responsibleName = responsibleName,
+            coveredSubscribers = coveredSubscribers.map { it.name }
+        )
+    }
+
+    private fun expandSubscribersForBilling(
+        selectedSubscriberIds: List<Long>,
+        selectedSubscribersById: Map<Long?, Subscriber>
+    ): List<Subscriber> {
+        val selectedSubscribers = selectedSubscriberIds.map { selectedSubscribersById[it]!! }
+        val expandedById = linkedMapOf<Long, Subscriber>()
+
+        selectedSubscribers.forEach { subscriber ->
+            expandedById[subscriber.id!!] = subscriber
+        }
+
+        val responsibleIds = selectedSubscribers.mapNotNull { subscriber ->
+            (subscriber.financialResponsibleSubscriber ?: subscriber).id
+        }.distinct()
+
+        responsibleIds.forEach { responsibleId ->
+            val covered = subscriberRepository.findByFinancialResponsibleSubscriberIdAndDeletedAtIsNull(responsibleId)
+                .sortedBy { it.id ?: Long.MAX_VALUE }
+            covered.forEach { coveredSubscriber ->
+                expandedById[coveredSubscriber.id!!] = coveredSubscriber
+            }
+        }
+
+        return expandedById.values.toList()
     }
 
     private fun formatCurrency(value: BigDecimal): String {
@@ -432,6 +528,11 @@ class SubscriberService(
         val platformValue: String,
         val subscriberShare: String,
         val participantsCount: Int
+    )
+
+    private data class BillingSummaryResponsibleContext(
+        val responsibleName: String,
+        val coveredSubscribers: List<String>
     )
 
     companion object {

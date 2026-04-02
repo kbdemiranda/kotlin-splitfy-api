@@ -47,6 +47,20 @@
                   </tr>
                 </table>
 
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" th:if="${responsibleContext != null}" style="margin:0 0 24px;background:#eff6ff;border:1px solid #bfdbfe;border-collapse:separate;border-spacing:0;border-radius:12px;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                  <tr>
+                    <td style="padding:14px 16px;">
+                      <p style="margin:0 0 6px;font-size:13px;line-height:18px;color:#1e3a8a;font-weight:700;">
+                        Responsável financeiro: <span th:text="${responsibleContext.responsibleName}">Nome</span>
+                      </p>
+                      <p style="margin:0;font-size:13px;line-height:19px;color:#1e3a8a;">
+                        Este resumo inclui cobranças de:
+                        <span th:text="${#strings.listJoin(responsibleContext.coveredSubscribers, ', ')}">Assinante A, Assinante B</span>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" th:each="subscriber : ${subscribers}" style="margin:0 0 18px;background:#ffffff;border:1px solid #e2e8f0;border-collapse:separate;border-spacing:0;border-radius:12px;overflow:hidden;mso-table-lspace:0pt;mso-table-rspace:0pt;">
                   <tr>
                     <td style="padding:0;">
@@ -93,8 +107,8 @@
                       <p style="margin:0 0 10px;font-size:14px;line-height:20px;color:#1e3a8a;font-weight:700;">Pagamento via Pix</p>
                       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
                         <tr>
-                          <td valign="top" style="width:132px;padding:0 16px 0 0;">
-                            <table role="presentation" width="116" cellspacing="0" cellpadding="0" style="width:116px;height:116px;border:2px dashed #93c5fd;border-radius:10px;background:#eff6ff;border-collapse:separate;border-spacing:0;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                          <td valign="middle" style="width:100px;padding:0 16px 0 0;vertical-align:middle;">
+                            <table role="presentation" width="100" cellspacing="0" cellpadding="0" style="width:100px;height:100px;border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
                               <tr>
                                 <td align="center" valign="middle" style="text-align:center;vertical-align:middle;">
                                   <img
