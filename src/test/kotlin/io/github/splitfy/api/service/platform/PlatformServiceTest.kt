@@ -18,6 +18,9 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 import java.util.Optional
 import java.util.UUID
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import kotlin.test.assertNull
 
 class PlatformServiceTest {
 
@@ -138,5 +141,101 @@ class PlatformServiceTest {
         assertEquals(BigDecimal("51.67"), response.priceInBrl)
         assertEquals(BigDecimal("5.1674"), response.exchangeRateToBrl)
         assertEquals(quoteAt.toLocalDate(), response.exchangeRateDate)
+    }
+
+    @Test
+    fun `findAll without filter returns BRL platforms without exchange lookup`() {
+        val pageable = PageRequest.of(0, 10)
+        val platform = platform(
+            id = 3L,
+            name = "Brazilian Service",
+            price = BigDecimal("12.345"),
+            currency = Currency.BRL
+        )
+        whenever(platformRepository.findByDeletedAtIsNull(pageable))
+            .thenReturn(PageImpl(listOf(platform), pageable, 1))
+
+        val response = service.findAll(pageable, null)
+
+        assertEquals(1, response.totalElements)
+        assertEquals(BigDecimal("12.35"), response.content.first().priceInBrl)
+        assertEquals(BigDecimal.ONE, response.content.first().exchangeRateToBrl)
+        assertNull(response.content.first().exchangeRateDate)
+        verify(exchangeRateService, never()).getLatestBrlRate(any())
+    }
+
+    @Test
+    fun `findAll with name filter converts foreign currency platforms`() {
+        val pageable = PageRequest.of(0, 10)
+        val quoteAt = LocalDateTime.of(2026, 4, 20, 12, 0)
+        val platform = platform(
+            id = 4L,
+            name = "Dollar Service",
+            price = BigDecimal("10.00"),
+            currency = Currency.USD
+        )
+        whenever(platformRepository.findByDeletedAtIsNullAndNameContainingIgnoreCase("Dollar", pageable))
+            .thenReturn(PageImpl(listOf(platform), pageable, 1))
+        whenever(exchangeRateService.getLatestBrlRate(Currency.USD)).thenReturn(
+            ExchangeRateQuote(Currency.USD, BigDecimal("5.123"), quoteAt)
+        )
+
+        val response = service.findAll(pageable, "Dollar")
+
+        assertEquals(BigDecimal("51.23"), response.content.first().priceInBrl)
+        assertEquals(BigDecimal("5.123"), response.content.first().exchangeRateToBrl)
+        assertEquals(quoteAt.toLocalDate(), response.content.first().exchangeRateDate)
+        verify(platformRepository).findByDeletedAtIsNullAndNameContainingIgnoreCase("Dollar", pageable)
+    }
+
+    @Test
+    fun `delete soft deletes existing platform`() {
+        val existing = platform(5L, "Old Service", BigDecimal("20.00"), Currency.BRL)
+        whenever(platformRepository.findById(5L)).thenReturn(Optional.of(existing))
+        whenever(platformRepository.save(any())).thenAnswer { invocation -> invocation.getArgument(0) }
+
+        service.delete(5L)
+
+        val captor = argumentCaptor<Platform>()
+        verify(platformRepository).save(captor.capture())
+        assertEquals(existing.id, captor.firstValue.id)
+        assertNotNull(captor.firstValue.deletedAt)
+    }
+
+    @Test
+    fun `findById returns BRL conversion without exchange quote`() {
+        val existing = platform(6L, "Local Service", BigDecimal("30.00"), Currency.BRL)
+        whenever(platformRepository.findById(6L)).thenReturn(Optional.of(existing))
+
+        val response = service.findById(6L)!!
+
+        assertEquals(BigDecimal("30.00"), response.priceInBrl)
+        assertEquals(BigDecimal.ONE, response.exchangeRateToBrl)
+        assertNull(response.exchangeRateDate)
+        verify(exchangeRateService, never()).getLatestBrlRate(any())
+    }
+
+    private fun platform(
+        id: Long,
+        name: String,
+        price: BigDecimal,
+        currency: Currency,
+    ): Platform {
+        return Platform(
+            id = id,
+            platformToken = UUID.randomUUID(),
+            name = name,
+            price = price,
+            currency = currency,
+            url = null,
+            serviceType = ServiceType.SOFTWARE,
+            totalSlots = 3,
+            availableSlots = 2,
+            createdAt = LocalDateTime.now(),
+            updatedAt = null,
+            deletedAt = null,
+            billingCycle = BillingCycle.MONTHLY,
+            billingDate = null
+        )
     }
 }
