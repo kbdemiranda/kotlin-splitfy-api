@@ -2,7 +2,9 @@ package io.github.splitfy.api.service.platform
 
 import io.github.splitfy.api.domain.entity.Platform
 import io.github.splitfy.api.domain.enums.Currency
+import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
+import io.github.splitfy.api.repository.PaymentConfirmationRepository
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
@@ -27,7 +29,8 @@ import java.util.UUID
 class PlatformService(
     private val platformRepository: PlatformRepository,
     private val exchangeRateService: ExchangeRateService,
-    private val subscriberPlatformRepository: SubscriberPlatformRepository
+    private val subscriberPlatformRepository: SubscriberPlatformRepository,
+    private val paymentConfirmationRepository: PaymentConfirmationRepository
 ) {
     private val log = LoggerFactory.getLogger(PlatformService::class.java)
     private val FINAL_SCALE = 2
@@ -130,14 +133,39 @@ class PlatformService(
                 .setScale(FINAL_SCALE, ROUNDING)
         }
 
+        val paidCyclesBySubscriberId = if (participantsCount == 0) {
+            emptyMap()
+        } else {
+            paymentConfirmationRepository
+                .findBySubscriberIdInAndPlatformIdAndStatusAndDeletedAtIsNull(
+                    associations.map { it.subscriber.id!! },
+                    id,
+                    PaymentConfirmationStatus.CONFIRMED
+                )
+                .groupingBy { it.subscriber.id!! }
+                .eachCount()
+        }
+
         val participants = associations.map { assoc ->
+            // Historical shares aren't stored per confirmation, so past cycles are valued at the current share/price.
+            val paidCyclesCount = paidCyclesBySubscriberId[assoc.subscriber.id] ?: 0
+            val paidCycles = BigDecimal(paidCyclesCount)
             PlatformParticipantItem(
                 subscriberId = assoc.subscriber.id!!,
                 subscriberName = assoc.subscriber.name,
                 subscriberEmail = assoc.subscriber.email,
                 subscribedAt = assoc.subscribedAt,
                 individualShare = individualShare,
-                individualShareOriginal = individualShareOriginal
+                individualShareOriginal = individualShareOriginal,
+                paidCyclesCount = paidCyclesCount,
+                totalPaid = individualShare?.multiply(paidCycles)?.setScale(FINAL_SCALE, ROUNDING),
+                totalPaidOriginal = individualShareOriginal?.multiply(paidCycles)?.setScale(FINAL_SCALE, ROUNDING),
+                totalIfSubscribedAlone = priceInBrl?.multiply(paidCycles)?.setScale(FINAL_SCALE, ROUNDING),
+                totalIfSubscribedAloneOriginal = if (platform.currency == Currency.BRL) {
+                    null
+                } else {
+                    platform.price.multiply(paidCycles).setScale(FINAL_SCALE, ROUNDING)
+                }
             )
         }
 

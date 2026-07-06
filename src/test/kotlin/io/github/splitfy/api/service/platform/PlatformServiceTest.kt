@@ -1,9 +1,12 @@
 package io.github.splitfy.api.service.platform
 
+import io.github.splitfy.api.domain.enums.PaymentConfirmationStatus
+import io.github.splitfy.api.repository.PaymentConfirmationRepository
 import io.github.splitfy.api.repository.PlatformRepository
 import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.domain.entity.Platform
+import io.github.splitfy.api.domain.entity.PaymentConfirmation
 import io.github.splitfy.api.domain.entity.Subscriber
 import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.domain.enums.ServiceType
@@ -19,6 +22,7 @@ import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.time.YearMonth
 import java.util.Optional
 import java.util.UUID
 import org.springframework.data.domain.PageImpl
@@ -30,7 +34,8 @@ class PlatformServiceTest {
     private val platformRepository: PlatformRepository = mock()
     private val exchangeRateService: ExchangeRateService = mock()
     private val subscriberPlatformRepository: SubscriberPlatformRepository = mock()
-    private val service = PlatformService(platformRepository, exchangeRateService, subscriberPlatformRepository)
+    private val paymentConfirmationRepository: PaymentConfirmationRepository = mock()
+    private val service = PlatformService(platformRepository, exchangeRateService, subscriberPlatformRepository, paymentConfirmationRepository)
 
     @Test
     fun `create saves and returns dto`() {
@@ -242,7 +247,58 @@ class PlatformServiceTest {
         assertNull(response.individualShareOriginal)
         assertEquals(listOf(1L, 2L), response.participants.map { it.subscriberId })
         assertEquals(BigDecimal("15.00"), response.participants[0].individualShare)
+        assertEquals(0, response.participants[0].paidCyclesCount)
+        assertEquals(BigDecimal("0.00"), response.participants[0].totalPaid)
+        assertEquals(BigDecimal("0.00"), response.participants[0].totalIfSubscribedAlone)
         verify(exchangeRateService, never()).getLatestBrlRate(any())
+    }
+
+    @Test
+    fun `getParticipants sums total paid and total if subscribed alone from confirmed payments`() {
+        val existing = platform(11L, "Foreign Service", BigDecimal("30.00"), Currency.USD)
+        val subscriberA = subscriber(4L, "Dara", "dara@example.com")
+        val subscriberB = subscriber(5L, "Elis", "elis@example.com")
+        val subscribedAt = LocalDateTime.of(2026, 1, 10, 9, 0)
+
+        whenever(platformRepository.findById(11L)).thenReturn(Optional.of(existing))
+        whenever(exchangeRateService.getLatestBrlRate(Currency.USD)).thenReturn(
+            ExchangeRateQuote(Currency.USD, BigDecimal("5.00"), LocalDateTime.now())
+        )
+        whenever(subscriberPlatformRepository.findActiveByPlatformIdWithSubscriber(11L)).thenReturn(
+            listOf(
+                subscriberPlatform(subscriberA, existing, subscribedAt),
+                subscriberPlatform(subscriberB, existing, subscribedAt)
+            )
+        )
+        whenever(
+            paymentConfirmationRepository.findBySubscriberIdInAndPlatformIdAndStatusAndDeletedAtIsNull(
+                listOf(4L, 5L), 11L, PaymentConfirmationStatus.CONFIRMED
+            )
+        ).thenReturn(
+            listOf(
+                paymentConfirmation(subscriberA, existing),
+                paymentConfirmation(subscriberA, existing),
+                paymentConfirmation(subscriberB, existing)
+            )
+        )
+
+        val response = service.getParticipants(11L)
+
+        // individualShare = 150.00 / 2 = 75.00 BRL; individualShareOriginal = 15.00 USD
+        val dara = response.participants.first { it.subscriberId == 4L }
+        val elis = response.participants.first { it.subscriberId == 5L }
+
+        assertEquals(2, dara.paidCyclesCount)
+        assertEquals(BigDecimal("150.00"), dara.totalPaid)
+        assertEquals(BigDecimal("30.00"), dara.totalPaidOriginal)
+        assertEquals(BigDecimal("300.00"), dara.totalIfSubscribedAlone)
+        assertEquals(BigDecimal("60.00"), dara.totalIfSubscribedAloneOriginal)
+
+        assertEquals(1, elis.paidCyclesCount)
+        assertEquals(BigDecimal("75.00"), elis.totalPaid)
+        assertEquals(BigDecimal("15.00"), elis.totalPaidOriginal)
+        assertEquals(BigDecimal("150.00"), elis.totalIfSubscribedAlone)
+        assertEquals(BigDecimal("30.00"), elis.totalIfSubscribedAloneOriginal)
     }
 
     @Test
@@ -299,6 +355,22 @@ class PlatformServiceTest {
             email = email,
             financialResponsibleSubscriber = null,
             createdAt = LocalDateTime.now()
+        )
+    }
+
+    private var nextReferenceMonth = YearMonth.of(2026, 1)
+
+    private fun paymentConfirmation(subscriber: Subscriber, platform: Platform): PaymentConfirmation {
+        val referenceMonth = nextReferenceMonth
+        nextReferenceMonth = nextReferenceMonth.plusMonths(1)
+        return PaymentConfirmation(
+            id = null,
+            subscriber = subscriber,
+            platform = platform,
+            referenceMonth = referenceMonth,
+            status = PaymentConfirmationStatus.CONFIRMED,
+            requestedByEmail = subscriber.email,
+            requestedAt = LocalDateTime.now()
         )
     }
 

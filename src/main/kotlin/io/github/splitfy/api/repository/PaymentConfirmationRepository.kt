@@ -28,6 +28,12 @@ interface PaymentConfirmationRepository : JpaRepository<PaymentConfirmation, Lon
 
     fun findByIdAndDeletedAtIsNull(id: Long): PaymentConfirmation?
 
+    fun findBySubscriberIdInAndPlatformIdAndStatusAndDeletedAtIsNull(
+        subscriberIds: List<Long>,
+        platformId: Long,
+        status: PaymentConfirmationStatus
+    ): List<PaymentConfirmation>
+
     @Query(
         """
         select pc
