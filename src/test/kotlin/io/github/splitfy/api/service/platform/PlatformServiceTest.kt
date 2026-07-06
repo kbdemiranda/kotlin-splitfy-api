@@ -1,8 +1,11 @@
 package io.github.splitfy.api.service.platform
 
 import io.github.splitfy.api.repository.PlatformRepository
+import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.domain.entity.Platform
+import io.github.splitfy.api.domain.entity.Subscriber
+import io.github.splitfy.api.domain.entity.SubscriberPlatform
 import io.github.splitfy.api.domain.enums.ServiceType
 import io.github.splitfy.api.domain.enums.BillingCycle
 import io.github.splitfy.api.domain.enums.Currency
@@ -26,7 +29,8 @@ class PlatformServiceTest {
 
     private val platformRepository: PlatformRepository = mock()
     private val exchangeRateService: ExchangeRateService = mock()
-    private val service = PlatformService(platformRepository, exchangeRateService)
+    private val subscriberPlatformRepository: SubscriberPlatformRepository = mock()
+    private val service = PlatformService(platformRepository, exchangeRateService, subscriberPlatformRepository)
 
     @Test
     fun `create saves and returns dto`() {
@@ -213,6 +217,100 @@ class PlatformServiceTest {
         assertEquals(BigDecimal.ONE, response.exchangeRateToBrl)
         assertNull(response.exchangeRateDate)
         verify(exchangeRateService, never()).getLatestBrlRate(any())
+    }
+
+    @Test
+    fun `getParticipants splits BRL price equally among active participants`() {
+        val existing = platform(7L, "Local Service", BigDecimal("30.00"), Currency.BRL)
+        val subscriberA = subscriber(1L, "Ana", "ana@example.com")
+        val subscriberB = subscriber(2L, "Bruno", "bruno@example.com")
+        val subscribedAt = LocalDateTime.of(2026, 1, 10, 9, 0)
+
+        whenever(platformRepository.findById(7L)).thenReturn(Optional.of(existing))
+        whenever(subscriberPlatformRepository.findActiveByPlatformIdWithSubscriber(7L)).thenReturn(
+            listOf(
+                subscriberPlatform(subscriberA, existing, subscribedAt),
+                subscriberPlatform(subscriberB, existing, subscribedAt)
+            )
+        )
+
+        val response = service.getParticipants(7L)
+
+        assertEquals(2, response.participantsCount)
+        assertEquals(BigDecimal("30.00"), response.priceInBrl)
+        assertEquals(BigDecimal("15.00"), response.individualShare)
+        assertNull(response.individualShareOriginal)
+        assertEquals(listOf(1L, 2L), response.participants.map { it.subscriberId })
+        assertEquals(BigDecimal("15.00"), response.participants[0].individualShare)
+        verify(exchangeRateService, never()).getLatestBrlRate(any())
+    }
+
+    @Test
+    fun `getParticipants converts foreign currency price before splitting`() {
+        val existing = platform(8L, "Foreign Service", BigDecimal("30.00"), Currency.USD)
+        val subscriberA = subscriber(3L, "Carla", "carla@example.com")
+        val subscribedAt = LocalDateTime.of(2026, 2, 1, 8, 0)
+
+        whenever(platformRepository.findById(8L)).thenReturn(Optional.of(existing))
+        whenever(exchangeRateService.getLatestBrlRate(Currency.USD)).thenReturn(
+            ExchangeRateQuote(Currency.USD, BigDecimal("5.00"), LocalDateTime.now())
+        )
+        whenever(subscriberPlatformRepository.findActiveByPlatformIdWithSubscriber(8L)).thenReturn(
+            listOf(subscriberPlatform(subscriberA, existing, subscribedAt))
+        )
+
+        val response = service.getParticipants(8L)
+
+        assertEquals(1, response.participantsCount)
+        assertEquals(BigDecimal("150.00"), response.priceInBrl)
+        assertEquals(BigDecimal("150.00"), response.individualShare)
+        assertEquals(BigDecimal("30.00"), response.individualShareOriginal)
+        assertEquals(BigDecimal("30.00"), response.participants.first().individualShareOriginal)
+    }
+
+    @Test
+    fun `getParticipants with no active participants returns null shares`() {
+        val existing = platform(9L, "Empty Service", BigDecimal("20.00"), Currency.BRL)
+        whenever(platformRepository.findById(9L)).thenReturn(Optional.of(existing))
+        whenever(subscriberPlatformRepository.findActiveByPlatformIdWithSubscriber(9L)).thenReturn(emptyList())
+
+        val response = service.getParticipants(9L)
+
+        assertEquals(0, response.participantsCount)
+        assertNull(response.individualShare)
+        assertNull(response.individualShareOriginal)
+        assertEquals(emptyList(), response.participants)
+    }
+
+    @Test
+    fun `getParticipants not found throws ResourceNotFoundApiException`() {
+        whenever(platformRepository.findById(10L)).thenReturn(Optional.empty())
+
+        assertFailsWith<ResourceNotFoundApiException> {
+            service.getParticipants(10L)
+        }
+    }
+
+    private fun subscriber(id: Long, name: String, email: String): Subscriber {
+        return Subscriber(
+            id = id,
+            subscriberToken = UUID.randomUUID(),
+            name = name,
+            email = email,
+            financialResponsibleSubscriber = null,
+            createdAt = LocalDateTime.now()
+        )
+    }
+
+    private fun subscriberPlatform(subscriber: Subscriber, platform: Platform, subscribedAt: LocalDateTime): SubscriberPlatform {
+        return SubscriberPlatform(
+            id = null,
+            subscriber = subscriber,
+            platform = platform,
+            subscribedAt = subscribedAt,
+            unsubscribedAt = null,
+            isActive = true
+        )
     }
 
     private fun platform(

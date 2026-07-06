@@ -1,6 +1,7 @@
 package io.github.splitfy.api.web.platform
 
 import io.github.splitfy.api.service.platform.PlatformService
+import io.github.splitfy.api.web.platform.dto.PlatformParticipantsResponse
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.web.platform.dto.PlatformResponse
 import org.springframework.http.ResponseEntity
@@ -52,6 +53,21 @@ class PlatformController(private val service: PlatformService) {
     fun get(@Parameter(description = "Platform ID") @PathVariable id: Long): ResponseEntity<PlatformResponse> {
         val found = service.findById(id) ?: return ResponseEntity.notFound().build()
         return ResponseEntity.ok(found)
+    }
+
+    @Operation(
+        summary = "List platform participants",
+        description = "Returns the subscribers associated with the platform along with the individual value each one pays for the service"
+    )
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "Found"),
+            ApiResponse(responseCode = "404", description = "Not found")
+        ]
+    )
+    @GetMapping("/{id}/participants")
+    fun getParticipants(@Parameter(description = "Platform ID") @PathVariable id: Long): ResponseEntity<PlatformParticipantsResponse> {
+        return ResponseEntity.ok(service.getParticipants(id))
     }
 
     @Operation(summary = "Update platform", description = "Updates an existing platform")

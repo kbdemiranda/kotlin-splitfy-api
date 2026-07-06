@@ -50,4 +50,16 @@ interface SubscriberPlatformRepository : JpaRepository<SubscriberPlatform, Long>
           AND p.deletedAt IS NULL
     """)
     fun findAllActiveWithSubscriberAndPlatform(): List<SubscriberPlatform>
+
+    // Fetch active associations for a platform with subscriber entity already fetched to avoid N+1
+    @Query("""
+        SELECT sp FROM SubscriberPlatform sp
+        JOIN FETCH sp.subscriber s
+        WHERE sp.platform.id = :platformId
+          AND sp.isActive = true
+          AND sp.deletedAt IS NULL
+          AND s.deletedAt IS NULL
+        ORDER BY sp.subscribedAt ASC
+    """)
+    fun findActiveByPlatformIdWithSubscriber(@Param("platformId") platformId: Long): List<SubscriberPlatform>
 }

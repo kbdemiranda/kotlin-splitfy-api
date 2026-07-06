@@ -4,9 +4,12 @@ import io.github.splitfy.api.domain.entity.Platform
 import io.github.splitfy.api.domain.enums.Currency
 import io.github.splitfy.api.exception.ResourceNotFoundApiException
 import io.github.splitfy.api.repository.PlatformRepository
+import io.github.splitfy.api.repository.SubscriberPlatformRepository
 import io.github.splitfy.api.service.exchange.ExchangeRateQuote
 import io.github.splitfy.api.service.exchange.ExchangeRateService
 import io.github.splitfy.api.logging.infoEvent
+import io.github.splitfy.api.web.platform.dto.PlatformParticipantItem
+import io.github.splitfy.api.web.platform.dto.PlatformParticipantsResponse
 import io.github.splitfy.api.web.platform.dto.PlatformRequest
 import io.github.splitfy.api.web.platform.dto.PlatformResponse
 import org.slf4j.LoggerFactory
@@ -23,9 +26,13 @@ import java.util.UUID
 @Transactional
 class PlatformService(
     private val platformRepository: PlatformRepository,
-    private val exchangeRateService: ExchangeRateService
+    private val exchangeRateService: ExchangeRateService,
+    private val subscriberPlatformRepository: SubscriberPlatformRepository
 ) {
     private val log = LoggerFactory.getLogger(PlatformService::class.java)
+    private val FINAL_SCALE = 2
+    private val INTERMEDIATE_SCALE = 10
+    private val ROUNDING = RoundingMode.HALF_UP
 
     fun create(dto: PlatformRequest): PlatformResponse {
         val entity = Platform(
@@ -97,6 +104,56 @@ class PlatformService(
     fun getPlatform(id: Long): Platform {
         return platformRepository.findById(id)
             .orElseThrow { ResourceNotFoundApiException("Platform not found with id: $id") }
+    }
+
+    fun getParticipants(id: Long): PlatformParticipantsResponse {
+        val platform = getPlatform(id)
+        val associations = subscriberPlatformRepository.findActiveByPlatformIdWithSubscriber(id)
+        val participantsCount = associations.size
+
+        val quote = if (platform.currency == Currency.BRL) null else exchangeRateService.getLatestBrlRate(platform.currency)
+        val priceInBrl = when (platform.currency) {
+            Currency.BRL -> platform.price.setScale(FINAL_SCALE, ROUNDING)
+            else -> quote?.rateToBrl?.let { platform.price.multiply(it).setScale(FINAL_SCALE, ROUNDING) }
+        }
+
+        val individualShare = if (participantsCount == 0) {
+            null
+        } else {
+            priceInBrl?.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
+                ?.setScale(FINAL_SCALE, ROUNDING)
+        }
+        val individualShareOriginal = if (platform.currency == Currency.BRL || participantsCount == 0) {
+            null
+        } else {
+            platform.price.divide(BigDecimal(participantsCount), INTERMEDIATE_SCALE, ROUNDING)
+                .setScale(FINAL_SCALE, ROUNDING)
+        }
+
+        val participants = associations.map { assoc ->
+            PlatformParticipantItem(
+                subscriberId = assoc.subscriber.id!!,
+                subscriberName = assoc.subscriber.name,
+                subscriberEmail = assoc.subscriber.email,
+                subscribedAt = assoc.subscribedAt,
+                individualShare = individualShare,
+                individualShareOriginal = individualShareOriginal
+            )
+        }
+
+        log.infoEvent("crud.get", "entity" to "platform-participants", "entityId" to platform.id, "entityToken" to platform.platformToken, "participantsCount" to participantsCount)
+
+        return PlatformParticipantsResponse(
+            platformId = platform.id!!,
+            platformName = platform.name,
+            price = platform.price,
+            currency = platform.currency,
+            priceInBrl = priceInBrl,
+            participantsCount = participantsCount,
+            individualShare = individualShare,
+            individualShareOriginal = individualShareOriginal,
+            participants = participants
+        )
     }
 
     private fun toDto(platform: Platform, quote: ExchangeRateQuote?): PlatformResponse {
