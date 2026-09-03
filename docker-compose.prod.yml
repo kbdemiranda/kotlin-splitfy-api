@@ -22,8 +22,16 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@splitfy.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4242,http://127.0.0.1:4242}
+      # Production stack owns its Redis instance; do not depend on a Redis
+      # container from another Compose project or on the host network.
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_TIMEOUT: ${REDIS_TIMEOUT:-2s}
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-9090}:8080"
 
   frontend:
     build:
@@ -35,4 +43,22 @@ services:
     depends_on:
       - backend
     ports:
-      - "4242:4242"
+      - "${FRONTEND_PORT:-4242}:4242"
+
+  redis:
+    image: redis:7-alpine
+    container_name: splitfy-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-16379}:6379"
+    volumes:
+      - splitfy_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  splitfy_redis_data:

@@ -216,7 +216,7 @@ Behavior:
 
 - builds backend with the runtime `Dockerfile`
 - builds frontend with the production `Dockerfile`
-- exposes backend directly on `http://localhost:8080`
+- exposes backend on `${BACKEND_PORT:-9090}` and frontend on `${FRONTEND_PORT:-4242}`
 - does **not** enable development schema bootstrap
 - reads backend credentials from `.env`
 
@@ -224,6 +224,12 @@ Start:
 
 ```bash
 docker compose -f docker-compose.prod.yml up --build -d
+```
+
+Override the published ports without changing source code:
+
+```bash
+BACKEND_PORT=9090 FRONTEND_PORT=4242 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
 Logs:
@@ -240,9 +246,10 @@ docker compose -f docker-compose.prod.yml down
 
 Endpoints:
 
-- Frontend: `http://localhost:4242`
-- API: `http://localhost:8080`
-- Swagger: `http://localhost:8080/swagger-ui/index.html`
+- Frontend: `http://localhost:${FRONTEND_PORT:-4242}`
+- API: `http://localhost:${BACKEND_PORT:-9090}`
+- Swagger: `http://localhost:${BACKEND_PORT:-9090}/swagger-ui/index.html`
+- Redis: `localhost:${REDIS_EXTERNAL_PORT:-16379}`
 
 Important:
 
