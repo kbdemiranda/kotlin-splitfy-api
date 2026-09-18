@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: kbdemiranda/postgres:17
     container_name: splitfy-showroom-postgres
     restart: unless-stopped
     environment:

@@ -46,7 +46,7 @@ services:
       - "${FRONTEND_PORT:-4242}:4242"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.10
     container_name: splitfy-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
