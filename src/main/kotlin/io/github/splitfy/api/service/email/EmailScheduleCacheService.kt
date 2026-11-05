@@ -42,19 +42,22 @@ class EmailScheduleCacheService(
             return null
         }
 
-        putSchedule(fresh)
-        log.info("Email schedule {} loaded from database and stored in Redis", scheduleKey)
+        if (putSchedule(fresh)) {
+            log.info("Email schedule {} loaded from database and stored in Redis", scheduleKey)
+        } else {
+            log.info("Email schedule {} loaded from database (not cached: Redis unavailable)", scheduleKey)
+        }
         return fresh
     }
 
-    fun putSchedule(schedule: EmailScheduleSetting) {
-        runCatching {
+    fun putSchedule(schedule: EmailScheduleSetting): Boolean {
+        return runCatching {
             val cacheKey = cacheKey(schedule.scheduleKey)
             val payload = CachedEmailSchedule.from(schedule, clock.instant())
             redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(payload))
         }.onFailure { ex ->
             log.warn("Failed to cache email schedule {}", schedule.scheduleKey, ex)
-        }
+        }.isSuccess
     }
 
     fun evict(scheduleKey: String) {

@@ -1,3 +1,4 @@
+name: splitfy
 services:
   backend:
     build:

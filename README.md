@@ -108,7 +108,7 @@ Optional (recommended):
 Redis note:
 
 - if the API runs locally on your machine and Redis runs through this repository's `docker compose`, use `REDIS_HOST=localhost` and `REDIS_PORT=16379`
-- if the API runs inside the `backend` container from `docker-compose.yml`, use `REDIS_HOST=redis` and `REDIS_PORT=6379`
+- if the API runs inside the `backend` container from `docker-compose.yml`, it uses `DOCKER_REDIS_HOST` (default `redis`) and `DOCKER_REDIS_PORT` (default `6379`); the host-side `REDIS_HOST`/`REDIS_PORT` are not used there
 
 Example:
 
